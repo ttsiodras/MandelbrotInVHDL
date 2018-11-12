@@ -84,18 +84,18 @@ int main(int argc, char **argv)
     ZestSC1SetSignalDirection(Handle, 0xf);
 
     //for(int i=0; i<10; i++) {
+        ZestSC1WriteRegister(Handle, 0x2000+123, 0x00);
         ZestSC1WriteRegister(Handle, 0x2000+123, 0x01);
-        ZestSC1WriteRegister(Handle, 0x2000+123, 0x23);
-        ZestSC1WriteRegister(Handle, 0x2000+123, 0x45);
-        ZestSC1WriteRegister(Handle, 0x2000+123, 0x67);
+        ZestSC1WriteRegister(Handle, 0x2000+123, 0x00);
+        ZestSC1WriteRegister(Handle, 0x2000+123, 0x00);
         printByteAt(3);
         printByteAt(2);
         printByteAt(1);
         printByteAt(0);
-        ZestSC1WriteRegister(Handle, 0x2000+123, 0x89);
-        ZestSC1WriteRegister(Handle, 0x2000+123, 0xAB);
-        ZestSC1WriteRegister(Handle, 0x2000+123, 0xCD);
-        ZestSC1WriteRegister(Handle, 0x2000+123, 0xEF);
+        ZestSC1WriteRegister(Handle, 0x2000+123, 0x00);
+        ZestSC1WriteRegister(Handle, 0x2000+123, 0x02);
+        ZestSC1WriteRegister(Handle, 0x2000+123, 0x80);
+        ZestSC1WriteRegister(Handle, 0x2000+123, 0x00);
         printByteAt(3);
         printByteAt(2);
         printByteAt(1);

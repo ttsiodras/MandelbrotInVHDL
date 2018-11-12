@@ -442,6 +442,7 @@ proc set_process_props {} {
    project set "Verilog Macros" "" -process "Synthesize - XST"
    project set "Work Directory" "/home/ttsiod/Xilinx/KB/ZestSC1/Examples/Primes/FPGA-VHDL/xst" -process "Synthesize - XST"
    project set "Write Timing Constraints" "false" -process "Synthesize - XST"
+   # Use the option "-use_new_parser yes" to properly work with the fixed_pkg from ieee_proposed
    project set "Other XST Command Line Options" "-use_new_parser yes" -process "Synthesize - XST"
    project set "Auto Implementation Compile Order" "true"
    project set "Map Effort Level" "Standard" -process "Map"

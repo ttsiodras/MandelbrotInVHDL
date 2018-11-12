@@ -50,6 +50,9 @@ use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.STD_LOGIC_ARITH.ALL;
 use IEEE.STD_LOGIC_UNSIGNED.ALL;
 
+library ieee_proposed;
+use ieee_proposed.fixed_pkg.all;
+
 --  Uncomment the following lines to use the declarations that are
 --  provided for instantiating Xilinx primitive components.
 --library UNISIM;
@@ -185,7 +188,7 @@ architecture arch of Example3 is
     signal InputNumber : std_logic_vector(31 downto 0);
     signal OutputNumber : std_logic_vector(31 downto 0);
     
-    type StateType is (receiving_input, computing);
+    type StateType is (receiving_input, computing, computed);
     signal State : StateType;
 
     -- Signals
@@ -205,6 +208,9 @@ begin
     -- Note that for compatibility with FX2LP devices only addresses
     -- above 2000 Hex are used
     process (RST, CLK)
+        variable inputSFixed : sfixed(15 downto -16);
+        variable outputSFixed : sfixed(31 downto -32);
+        variable outputSFixedTruncated : std_logic_vector(63 downto 0);
     begin
         if (RST='1') then
             BitsWrittenSoFar <= "000";
@@ -230,7 +236,13 @@ begin
                     end if; -- WE='1'
                     
                 when computing =>
-                   OutputNumber <= InputNumber + 17;
+                   inputSFixed := to_sfixed(InputNumber, 15, -16);
+                   outputSFixed := inputSFixed * to_sfixed(3.14159, 15, -16);
+                   outputSFixedTruncated := to_slv(outputSFixed);
+                   State <= computed;
+
+                when computed =>
+                   OutputNumber <= outputSFixedTruncated(47 downto 16);
                    state <= receiving_input;
             end case; -- case State is ...
             

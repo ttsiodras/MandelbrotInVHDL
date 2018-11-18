@@ -187,26 +187,37 @@ architecture arch of Example3 is
     signal Interrupt : std_logic;
 
     -- Registers
+    signal input_x, input_y : std_logic_vector(31 downto 0);
+    signal input_x_given, input_y_given : std_logic;
     signal OutputNumber : std_logic_vector(7 downto 0);
-    signal debug1 : std_logic_vector(31 downto 0);
-    signal debug2 : std_logic_vector(31 downto 0);
-    signal debug3 : std_logic_vector(31 downto 0);
-    signal debug4 : std_logic_vector(31 downto 0);
  
     -- My types
     type state_type is (
         receiving_input,
-        stage1,
-        stage2,
-        stage3,
-        stage4,
-        stage5,
-        stage6,
-        stage7,
+        comp_stage1,
+        comp_stage2,
+        comp_stage21,
+        comp_stage3,
+        comp_stage4,
         computed);
+    signal state : state_type;
 
-    -- 
+    -- Signals
+    signal bits_sent_so_far_for_X, bits_sent_so_far_for_Y : std_logic_vector(2 downto 0);
+    signal WE_old : std_logic;
+
+    -- Inner logic
+    signal input_x_sfixed, input_y_sfixed : custom_fixed_point_type;
+    signal x_mandel, y_mandel : custom_fixed_point_type;
+    signal x_mandel_sq, y_mandel_sq, x_mandel_times_y_mandel, magnitude : custom_fixed_point_type;
+    signal output_xy_sfixed : custom_fixed_point_type;
     constant borderValue : custom_fixed_point_type := to_sfixed_custom(4.0);
+    signal pixel_color : unsigned(7 downto 0);
+    signal debug1 : std_logic_vector(31 downto 0);
+    signal debug2 : std_logic_vector(31 downto 0);
+    signal debug3 : std_logic_vector(31 downto 0);
+    signal debug4 : std_logic_vector(31 downto 0);
+    signal magnitude_slv : std_logic_vector(31 downto 0);
 begin
 
     -- Tie unused signals
@@ -221,52 +232,41 @@ begin
     -- Note that for compatibility with FX2LP devices only addresses
     -- above 2000 Hex are used
     process (RST, CLK)
-        -- Inner logic
-        variable input_x_sfixed, input_y_sfixed : custom_fixed_point_type;
-        variable x_mandel, y_mandel : custom_fixed_point_type;
-        variable x_mandel_sq, y_mandel_sq, x_mandel_times_y_mandel, magnitude : custom_fixed_point_type;
-        variable output_xy_sfixed : custom_fixed_point_type;
-        variable pixel_color : unsigned(7 downto 0);
-        variable magnitude_slv : std_logic_vector(31 downto 0);
-        -- Signals
-        variable bits_sent_so_far_for_X, bits_sent_so_far_for_Y : std_logic_vector(2 downto 0);
-        variable input_x, input_y : std_logic_vector(31 downto 0);
-        variable input_x_given, input_y_given : std_logic;
-        variable state : state_type;
-
     begin
         if (RST='1') then
-            bits_sent_so_far_for_X := "000";
-            bits_sent_so_far_for_Y := "000";
-            input_x := X"00000000";
-            input_y := X"00000000";
-            input_x_given := '0';
-            input_y_given := '0';
+            bits_sent_so_far_for_X <= "000";
+            bits_sent_so_far_for_Y <= "000";
+            input_x <= X"00000000";
+            input_y <= X"00000000";
+            input_x_given <= '0';
+            input_y_given <= '0';
             OutputNumber <= X"00";
-            state := receiving_input;
+            state <= receiving_input;
+            WE_old <= '0';
         elsif (CLK'event and CLK='1') then
+            WE_old <= WE;
             debug4 <= to_slv(borderValue);
 
             -- Was the WE signal just raised?
-            if WE='1' then
+            if (WE='1' and WE_old = '0') then
                 case Addr is
                     when X"207B" => 
-                        input_x := input_x(23 downto 0) & DataIn;
-                        bits_sent_so_far_for_X := bits_sent_so_far_for_X + 1;
-                        if bits_sent_so_far_for_X = "100" then
-                            input_x_given := '1';
-                            bits_sent_so_far_for_X := "000";
+                        input_x <= input_x(23 downto 0) & DataIn;
+                        if bits_sent_so_far_for_X = "011" then
+                            input_x_given <= '1';
+                            bits_sent_so_far_for_X <= "000";
                         else 
-                            input_x_given := '0';
+                            input_x_given <= '0';
+                            bits_sent_so_far_for_X <= bits_sent_so_far_for_X + 1;
                         end if;
                     when X"207C" => 
-                        input_y := input_y(23 downto 0) & DataIn;
-                        bits_sent_so_far_for_Y := bits_sent_so_far_for_Y + 1;
-                        if bits_sent_so_far_for_Y = "100" then
-                            input_y_given := '1';
-                            bits_sent_so_far_for_Y := "000";
+                        input_y <= input_y(23 downto 0) & DataIn;
+                        if bits_sent_so_far_for_Y = "011" then
+                            input_y_given <= '1';
+                            bits_sent_so_far_for_Y <= "000";
                         else 
-                            input_y_given := '0';
+                            input_y_given <= '0';
+                            bits_sent_so_far_for_Y <= bits_sent_so_far_for_Y + 1;
                         end if;
                     when others =>
                 end case;
@@ -275,71 +275,63 @@ begin
             case state is
                 when receiving_input =>
                     if input_x_given = '1' and input_y_given = '1' then
-                        input_x_sfixed := to_sfixed_custom(input_x);
-                        input_y_sfixed := to_sfixed_custom(input_y);
-                        x_mandel := to_sfixed_custom(0.0);
-                        y_mandel := to_sfixed_custom(0.0);
-                        pixel_color := X"00";
-                        state := stage1;
-                        input_x_given := '0';
-                        input_y_given := '0';
+                        input_x_sfixed <= to_sfixed_custom(input_x);
+                        input_y_sfixed <= to_sfixed_custom(input_y);
+                        x_mandel <= to_sfixed_custom(0.0);
+                        y_mandel <= to_sfixed_custom(0.0);
+                        pixel_color <= X"00";
+                        state <= comp_stage1;
+                        input_x_given <= '0';
+                        input_y_given <= '0';
                     end if;
                 
-                when stage1 =>
+                when comp_stage1 =>
                     if pixel_color > 127 then
-                        state := computed;
+                        state <= computed;
                     else
-                        x_mandel_times_y_mandel := resize(x_mandel*y_mandel, x_mandel_times_y_mandel);
-                        x_mandel_times_y_mandel := x_mandel_times_y_mandel sll 1;
-                        state := stage2;
+                        x_mandel_times_y_mandel <= resize(to_sfixed_custom(2.0)*x_mandel*y_mandel, x_mandel_times_y_mandel);
+                        x_mandel_sq <= resize(x_mandel*x_mandel, x_mandel_sq);
+                        y_mandel_sq <= resize(y_mandel*y_mandel, y_mandel_sq);
+                        state <= comp_stage2;
                     end if;
 
-                when stage2 =>
-                    x_mandel_sq := resize(x_mandel*x_mandel, x_mandel_sq);
-                    state := stage3;
+                when comp_stage2 =>
+                    magnitude <= resize(x_mandel_sq + y_mandel_sq, magnitude);
+                    state <= comp_stage21;
 
-                when stage3 =>
-                    y_mandel_sq := resize(y_mandel*y_mandel, y_mandel_sq);
-                    state := stage4;
+                when comp_stage21 =>
+                    magnitude_slv <= to_slv(magnitude);
+                    state <= comp_stage3;
 
-                when stage4 =>
-                    magnitude := resize(x_mandel_sq + y_mandel_sq, magnitude);
-                    state := stage5;
-
-                when stage5 =>
+                when comp_stage3 =>
                     debug3 <= to_slv(magnitude);
-                    magnitude_slv := to_slv(magnitude);
-                    state := stage6;
-
-                when stage6 =>
                     if magnitude_slv(31 downto 18) /= "00000000000000" then
-                        state := computed;
+                        state <= computed;
                     else
-                        state := stage7;
+                        state <= comp_stage4;
+                        OutputNumber <= std_logic_vector(pixel_color);
                     end if;
 
-                when stage7 =>
-                    pixel_color := pixel_color + 1;
-                    x_mandel := resize(x_mandel_sq - y_mandel_sq + input_x_sfixed, x_mandel);
-                    y_mandel := resize(x_mandel_times_y_mandel + input_y_sfixed, y_mandel);
+                when comp_stage4 =>
+                    pixel_color <= pixel_color + 1;
+                    x_mandel <= resize(x_mandel_sq - y_mandel_sq + input_x_sfixed, x_mandel);
+                    y_mandel <= resize(x_mandel_times_y_mandel + input_y_sfixed, y_mandel);
                     debug1 <= to_slv(x_mandel);
                     debug2 <= to_slv(y_mandel);
-                    state := stage1;
+                    state <= comp_stage1;
 
                 when computed =>
-                    state := receiving_input;
-                    OutputNumber <= std_logic_vector(pixel_color);
+                   state <= receiving_input;
             end case; -- case state is ...
             
         end if; -- if CLK'event and CLK = '1' ...
     end process;
 
-    process (RE, Addr, debug1, debug2, debug3, debug4, OutputNumber)
+    process (RE, Addr, debug1, OutputNumber)
     begin
         if (RE='1') then
             case Addr is
             when X"207C" => DataOut <= OutputNumber(7 downto 0);
-
             when X"2000" => DataOut <= debug1(7 downto 0);
             when X"2001" => DataOut <= debug1(15 downto 8);
             when X"2002" => DataOut <= debug1(23 downto 16);

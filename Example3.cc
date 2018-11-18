@@ -112,30 +112,36 @@ int main(int argc, char **argv)
         return result;
     };
 
-    //for(int i=0; i<100; i++) {
-        double inputX = 0.4099999999999997;
-        double inputY = -0.21500000000000008; // => 111
-        // double inputX = 0.4399999999999995;
-        // double inputY = 0.24999999999999978; // => 15
-        SendParam(inputX, 0, true);
-        SendParam(inputY, 1, true);
-        usleep(10000);
+    double inputX = 0.4099999999999997;
+    double inputY = -0.21500000000000008; // => 111
+
+    for(int i=0; i<10000; i++) {
+        if (i&1) {
+            inputX = 0.4099999999999997;
+            inputY = -0.21500000000000008; // => 111
+        } else {
+            inputX = 0.4399999999999995;
+            inputY = 0.24999999999999978; // => 15
+        }
+        SendParam(inputX, 0);
+        SendParam(inputY, 1);
         unsigned output = GetResult(0x7c, 1);
+        printf("%d\n", output);
 
-        cout << "Sent in: ";
-        cout << setw(10) << inputX << ",";
-        cout << setw(10) << inputY;
-        cout << ", got out: " << setw(10) << output << "\n";
+        // cout << "Sent in: ";
+        // cout << setw(10) << inputX << ",";
+        // cout << setw(10) << inputY;
+        // cout << ", got out: " << setw(10) << output << "\n";
 
-        unsigned mandel_x = GetResult(0, 4, true);
-        cout << "Mandel_x: " << to_double(mandel_x) << "\n\n";
-        unsigned mandel_y = GetResult(4, 4, true);
-        cout << "Mandel_y: " << to_double(mandel_y) << "\n\n";
-        unsigned magnitude = GetResult(8, 4, true);
-        cout << "Magnitude: " << to_double(magnitude) << "\n\n";
-        unsigned borderValue = GetResult(12, 4, true);
-        cout << "Border: " << to_double(borderValue) << "\n\n";
-    //}
+        // unsigned mandel_x = GetResult(0, 4, true);
+        // cout << "Mandel_x: " << to_double(mandel_x) << "\n\n";
+        // unsigned mandel_y = GetResult(4, 4, true);
+        // cout << "Mandel_y: " << to_double(mandel_y) << "\n\n";
+        // unsigned magnitude = GetResult(8, 4, true);
+        // cout << "Magnitude: " << to_double(magnitude) << "\n\n";
+        // unsigned borderValue = GetResult(12, 4, true);
+        // cout << "Border: " << to_double(borderValue) << "\n\n";
+    }
     //}
 
     //

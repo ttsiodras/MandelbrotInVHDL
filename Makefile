@@ -2,7 +2,7 @@ TARGET = ../example3
 LDFLAGS = -L../../Lib
 LIBS = -lusb -lZestSC1
 OBJS = Example3.o
-CXXFLAGS = -g -I../../Inc -std=c++17
+CXXFLAGS = -g -O2 -I../../Inc -std=c++17
 BITFILE := FPGA-VHDL/Example3.bit
 
 all: $(TARGET) $(BITFILE)

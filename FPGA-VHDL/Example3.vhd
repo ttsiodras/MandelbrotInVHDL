@@ -53,6 +53,8 @@ use IEEE.STD_LOGIC_UNSIGNED.ALL;
 library ieee_proposed;
 use ieee_proposed.fixed_pkg.all;
 
+-- use work.custom_fixed_point_types.all;
+
 --  Uncomment the following lines to use the declarations that are
 --  provided for instantiating Xilinx primitive components.
 --library UNISIM;
@@ -187,9 +189,15 @@ architecture arch of Example3 is
     -- Registers
     signal InputNumber : std_logic_vector(31 downto 0);
     signal OutputNumber : std_logic_vector(31 downto 0);
-    
+ 
+    -- My types
     type StateType is (receiving_input, computing, computed);
     signal State : StateType;
+
+    constant integerPart  : integer := 16;
+    constant fractionalPart : integer := 16;
+
+    subtype custom_fixed_point_type is sfixed(integerPart - 1 downto -fractionalPart);
 
     -- Signals
     signal BitsWrittenSoFar : std_logic_vector(2 downto 0);
@@ -208,10 +216,10 @@ begin
     -- Note that for compatibility with FX2LP devices only addresses
     -- above 2000 Hex are used
     process (RST, CLK)
-        variable inputSFixed : sfixed(15 downto -16);
+        variable inputSFixed : custom_fixed_point_type;
         -- variable outputSFixed : sfixed(31 downto -32);
-        variable outputSFixed : sfixed(15 downto -16);
-        constant mulFactor : sfixed(15 downto -16) := to_sfixed(3.14159, 15, -16);
+        variable outputSFixed : custom_fixed_point_type;
+        constant mulFactor : custom_fixed_point_type := to_sfixed(3.14159, integerPart-1, -fractionalPart);
 
     begin
         if (RST='1') then
@@ -238,7 +246,7 @@ begin
                     end if; -- WE='1'
                     
                 when computing =>
-                   inputSFixed := to_sfixed(InputNumber, 15, -16);
+                   inputSFixed := to_sfixed(InputNumber, integerPart-1, -fractionalPart);
                    outputSFixed := resize(inputSFixed * mulFactor, outputSFixed);
                    State <= computed;
 

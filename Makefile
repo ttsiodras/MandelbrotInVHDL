@@ -17,5 +17,5 @@ clean:
 $(TARGET): $(OBJS) ../../Lib/libZestSC1.a $(BITFILE)
 	$(LD) $(LDFLAGS) -o $(TARGET) $(OBJS) $(LIBS)
 
-${BITFILE}:	FPGA-VHDL/Example3.vhd
+${BITFILE}:	FPGA-VHDL/Example3.vhd FPGA-VHDL/MyTypes.vhd FPGA-VHDL/Example3.tcl
 	cd FPGA-VHDL/ && xtclsh Example3.tcl   rebuild_project

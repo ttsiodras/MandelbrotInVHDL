@@ -209,8 +209,10 @@ begin
     -- above 2000 Hex are used
     process (RST, CLK)
         variable inputSFixed : sfixed(15 downto -16);
-        variable outputSFixed : sfixed(31 downto -32);
-        variable outputSFixedTruncated : std_logic_vector(63 downto 0);
+        -- variable outputSFixed : sfixed(31 downto -32);
+        variable outputSFixed : sfixed(15 downto -16);
+        constant mulFactor : sfixed(15 downto -16) := to_sfixed(3.14159, 15, -16);
+
     begin
         if (RST='1') then
             BitsWrittenSoFar <= "000";
@@ -237,12 +239,11 @@ begin
                     
                 when computing =>
                    inputSFixed := to_sfixed(InputNumber, 15, -16);
-                   outputSFixed := inputSFixed * to_sfixed(3.14159, 15, -16);
-                   outputSFixedTruncated := to_slv(outputSFixed);
+                   outputSFixed := resize(inputSFixed * mulFactor, outputSFixed);
                    State <= computed;
 
                 when computed =>
-                   OutputNumber <= outputSFixedTruncated(47 downto 16);
+                   OutputNumber <= to_slv(outputSFixed);
                    state <= receiving_input;
             end case; -- case State is ...
             

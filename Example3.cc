@@ -14,11 +14,13 @@
 #include <iostream>
 #include <iomanip>
 
+#include <unistd.h>
+
 #include "ZestSC1.h"
 
 using std::cout, std::endl, std::setw;
 
-const unsigned FRACTIONAL_PART = 27;
+const unsigned FRACTIONAL_PART = 16;
 const double SCALE_FACTOR = ((double)(1<<FRACTIONAL_PART));
 
 double to_double(int x)
@@ -88,36 +90,43 @@ int main(int argc, char **argv)
     ZestSC1SetSignalDirection(Handle, 0xf);
 
     // Helper functions
-    auto SendParam = [](double input, unsigned offset) {
+    auto SendParam = [](double input, unsigned offset, bool debugPrint=false) {
         unsigned inputFixed = (unsigned)(input*SCALE_FACTOR);
+        if (debugPrint)
+            printf("0x%04x: %08x\n", 0x207B+offset, inputFixed);
         ZestSC1WriteRegister(Handle, 0x207B+offset, (inputFixed>>24) & 0xFF);
         ZestSC1WriteRegister(Handle, 0x207B+offset, (inputFixed>>16) & 0xFF);
         ZestSC1WriteRegister(Handle, 0x207B+offset, (inputFixed>>8) & 0xFF);
         ZestSC1WriteRegister(Handle, 0x207B+offset, (inputFixed>>0) & 0xFF);
     };
 
-    auto GetResult = [](unsigned offset, bool debugPrint=false) {
+    auto GetResult = [](unsigned offset, unsigned bytes, bool debugPrint=false) {
         unsigned result = 0;
-        for(auto byteIdx=3; byteIdx!=-1; byteIdx--) {
+        for(; bytes!=0; bytes--) {
             unsigned char ub;
-            ZestSC1ReadRegister(Handle, 0x207c+offset+byteIdx, &ub);
+            ZestSC1ReadRegister(Handle, 0x2000+offset+bytes-1, &ub);
             result <<= 8; result |= ub;
             if (debugPrint)
-                printf("0x%04x: %02x\n", 0x207c+(unsigned)byteIdx, (unsigned)ub);
+                printf("0x%04x: %02x\n", 0x2000+offset+bytes-1, (unsigned)ub);
         }
         return result;
     };
 
-    for(int i=0; i<25; i++) {
-        double input = 0.1 * i;
-        SendParam(input, 0);
-        SendParam(input, 1);
-        unsigned output = GetResult(0);
+    for(int i=0; i<100; i++) {
+        double inputX = 2.2 + 0.1 * 0;
+        double inputY = 1.1 + 0.1 * 0;
+        SendParam(inputX, 0);
+        SendParam(inputY, 1);
+        usleep(10000);
+        unsigned output = GetResult(0x7c, 1);
 
-        cout << "Sent in: " << setw(10) << input;
-        cout << ", got out: " << setw(10) << to_double(output);
-        cout << " (expected: " << setw(10) << 3.14159*input*input;
-        cout << ")" << endl;
+        cout << "Sent in: ";
+        cout << setw(10) << inputX << ",";
+        cout << setw(10) << inputY;
+        cout << ", got out: " << setw(10) << output << "\n";
+
+        unsigned magnitude = GetResult(0, 4, true);
+        cout << "Magnitude: " << to_double(magnitude) << "\n\n";
     }
 
     //

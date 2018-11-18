@@ -189,15 +189,32 @@ architecture arch of Example3 is
     -- Registers
     signal input_x, input_y : std_logic_vector(31 downto 0);
     signal input_x_given, input_y_given : std_logic;
-    signal OutputNumber : std_logic_vector(31 downto 0);
+    signal OutputNumber : std_logic_vector(7 downto 0);
  
     -- My types
-    type state_type is (receiving_input, computing, computed);
+    type state_type is (
+        receiving_input,
+        computing_stage1,
+        computing_stage2,
+        computing_stage3,
+        computing_stage4,
+        computed);
     signal state : state_type;
 
     -- Signals
     signal bits_sent_so_far_for_X, bits_sent_so_far_for_Y : std_logic_vector(2 downto 0);
     signal WE_old : std_logic;
+    signal debug_magnitude : std_logic_vector(31 downto 0);
+
+    -- Inner logic
+    signal input_x_sfixed, input_y_sfixed : custom_fixed_point_type;
+    signal x_mandel, y_mandel : custom_fixed_point_type;
+    signal x_mandel_sq, y_mandel_sq, x_mandel_times_y_mandel, magnitude : custom_fixed_point_type;
+    signal output_xy_sfixed : custom_fixed_point_type;
+    constant mulFactor : custom_fixed_point_type := to_sfixed_custom(3.14159);
+    signal pixel_color : unsigned(7 downto 0);
+    signal synced_magnitude : std_logic_vector(31 downto 0);
+
 begin
 
     -- Tie unused signals
@@ -211,12 +228,10 @@ begin
     -- Implement register write
     -- Note that for compatibility with FX2LP devices only addresses
     -- above 2000 Hex are used
-    process (RST, CLK)
-        variable input_x_sfixed, input_y_sfixed : custom_fixed_point_type;
-        variable output_xy_sfixed : custom_fixed_point_type;
-        constant mulFactor : custom_fixed_point_type := to_sfixed_custom(3.14159);
-
+    process (RST, CLK, synced_magnitude)
     begin
+        debug_magnitude <= synced_magnitude;
+
         if (RST='1') then
             bits_sent_so_far_for_X <= "000";
             bits_sent_so_far_for_Y <= "000";
@@ -224,11 +239,12 @@ begin
             input_y <= X"00000000";
             input_x_given <= '0';
             input_y_given <= '0';
-            OutputNumber <= X"00000000";
+            OutputNumber <= X"00";
             state <= receiving_input;
             WE_old <= '0';
         elsif (CLK'event and CLK='1') then
             WE_old <= WE;
+
             -- Was the WE signal just raised?
             if (WE='1' and WE_old = '0') then
                 case Addr is
@@ -257,17 +273,40 @@ begin
             case state is
                 when receiving_input =>
                     if input_x_given = '1' and input_y_given = '1' then
-                        input_x_sfixed := to_sfixed_custom(input_x);
-                        input_y_sfixed := to_sfixed_custom(input_y);
-                        state <= computing;
+                        input_x_sfixed <= to_sfixed_custom(input_x);
+                        input_y_sfixed <= to_sfixed_custom(input_y);
+                        x_mandel <= to_sfixed_custom(0.0);
+                        y_mandel <= to_sfixed_custom(0.0);
+                        pixel_color <= X"00";
+                        state <= computing_stage1;
                     end if;
-                    
-                when computing =>
-                   output_xy_sfixed := resize(input_x_sfixed * input_y_sfixed * mulFactor, output_xy_sfixed);
-                   state <= computed;
+                
+                when computing_stage1 =>
+                    x_mandel_times_y_mandel <= resize(to_sfixed_custom(2.0)*x_mandel*y_mandel, x_mandel_times_y_mandel);
+                    x_mandel_sq <= resize(x_mandel*x_mandel, x_mandel_sq);
+                    y_mandel_sq <= resize(y_mandel*y_mandel, y_mandel_sq);
+                    state <= computing_stage2;
+
+                when computing_stage2 =>
+                    magnitude <= resize(x_mandel_sq + y_mandel_sq, magnitude);
+                    state <= computing_stage3;
+
+                when computing_stage3 =>
+                    if magnitude > to_sfixed_custom(4) or pixel_color >= 2 then
+                        state <= computed;
+                    else
+                        state <= computing_stage4;
+                    end if;
+
+                when computing_stage4 =>
+                    pixel_color <= pixel_color + 1;
+                    x_mandel <= resize(x_mandel_sq - y_mandel_sq + input_x_sfixed, x_mandel);
+                    y_mandel <= resize(x_mandel_times_y_mandel + input_y_sfixed, y_mandel);
+                    synced_magnitude <= to_slv(x_mandel);
+                    state <= computing_stage1;
 
                 when computed =>
-                   OutputNumber <= to_slv(output_xy_sfixed);
+                   OutputNumber <= std_logic_vector(pixel_color);
                    state <= receiving_input;
             end case; -- case state is ...
             
@@ -279,9 +318,10 @@ begin
         if (RE='1') then
             case Addr is
             when X"207C" => DataOut <= OutputNumber(7 downto 0);
-            when X"207D" => DataOut <= OutputNumber(15 downto 8);
-            when X"207E" => DataOut <= OutputNumber(23 downto 16);
-            when X"207F" => DataOut <= OutputNumber(31 downto 24);
+            when X"2000" => DataOut <= debug_magnitude(7 downto 0);
+            when X"2001" => DataOut <= debug_magnitude(15 downto 8);
+            when X"2002" => DataOut <= debug_magnitude(23 downto 16);
+            when X"2003" => DataOut <= debug_magnitude(31 downto 24);
             when others => DataOut <= X"AA";
             end case;
         end if;

@@ -15,8 +15,8 @@ use ieee_proposed.fixed_pkg.all;
 
 package custom_fixed_point_types is
 
-    constant integerPart  : integer := 5;
-    constant fractionalPart : integer := 27;
+    constant integerPart  : integer := 16;
+    constant fractionalPart : integer := 16;
 
     subtype custom_fixed_point_type is sfixed(integerPart - 1 downto -fractionalPart);
 

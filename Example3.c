@@ -15,6 +15,8 @@
 #include <stdlib.h>
 #include "ZestSC1.h"
 
+#define FRACTIONAL_PART 27
+#define SCALE_FACTOR ((double)(1<<FRACTIONAL_PART))
 //
 // Error handler function
 //
@@ -86,7 +88,7 @@ int main(int argc, char **argv)
 
     for(int i=0; i<10; i++) {
         double input = 1.0 * i;
-        unsigned inputFixed = (unsigned)(input*65536.);
+        unsigned inputFixed = (unsigned)(input*SCALE_FACTOR);
         ZestSC1WriteRegister(Handle, 0x2000+123, (inputFixed>>24) & 0xFF);
         ZestSC1WriteRegister(Handle, 0x2000+123, (inputFixed>>16) & 0xFF);
         ZestSC1WriteRegister(Handle, 0x2000+123, (inputFixed>>8) & 0xFF);
@@ -98,8 +100,8 @@ int main(int argc, char **argv)
         output <<=8; output |= printByteAt(0);
         printf("Sent in %f, got out: %f (expected: %f)\n\n",
                input,
-               ((double)output) / 65536.,
-               3.14159*((double)inputFixed) / 65536.);
+               ((double)output) / SCALE_FACTOR,
+               3.14159*((double)inputFixed) / SCALE_FACTOR);
     }
 
     //

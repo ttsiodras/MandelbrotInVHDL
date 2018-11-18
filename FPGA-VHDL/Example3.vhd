@@ -53,7 +53,7 @@ use IEEE.STD_LOGIC_UNSIGNED.ALL;
 library ieee_proposed;
 use ieee_proposed.fixed_pkg.all;
 
--- use work.custom_fixed_point_types.all;
+use work.custom_fixed_point_types.all;
 
 --  Uncomment the following lines to use the declarations that are
 --  provided for instantiating Xilinx primitive components.
@@ -193,11 +193,6 @@ architecture arch of Example3 is
     -- My types
     type StateType is (receiving_input, computing, computed);
     signal State : StateType;
-
-    constant integerPart  : integer := 16;
-    constant fractionalPart : integer := 16;
-
-    subtype custom_fixed_point_type is sfixed(integerPart - 1 downto -fractionalPart);
 
     -- Signals
     signal BitsWrittenSoFar : std_logic_vector(2 downto 0);

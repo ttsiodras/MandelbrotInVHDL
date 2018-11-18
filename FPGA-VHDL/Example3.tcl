@@ -238,6 +238,7 @@ proc add_source_files {} {
    xfile add "../ieee_proposed/fixed_float_types_c.vhd"
    xfile add "../ieee_proposed/fixed_pkg_c.vhd"
    xfile add "Example3.vhd"
+   xfile add "MyTypes.vhd"
    xfile add "testFinallyWorks.vhd"
 
    # Set the Top Module as well...

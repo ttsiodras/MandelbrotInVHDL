@@ -241,7 +241,7 @@ begin
                     end if; -- WE='1'
                     
                 when computing =>
-                   inputSFixed := to_sfixed(InputNumber, integerPart-1, -fractionalPart);
+                   inputSFixed := to_sfixed_custom(InputNumber);
                    outputSFixed := resize(inputSFixed * mulFactor, outputSFixed);
                    State <= computed;
 

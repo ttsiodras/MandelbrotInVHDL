@@ -43,7 +43,7 @@ package body custom_fixed_point_types is
     function to_sfixed_custom(arg : std_logic_vector) return unresolved_sfixed is
         variable result : unresolved_sfixed(integerPart - 1 downto -fractionalPart);
     begin
-        result := to_sfixed(arg => to_integer(signed(arg)), left_index => integerPart - 1, right_index => -fractionalPart);
+        result := to_sfixed(arg, left_index => integerPart - 1, right_index => -fractionalPart);
         return result;
     end function to_sfixed_custom;
 

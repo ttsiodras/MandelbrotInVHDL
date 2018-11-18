@@ -187,15 +187,16 @@ architecture arch of Example3 is
     signal Interrupt : std_logic;
 
     -- Registers
-    signal InputNumber : std_logic_vector(31 downto 0);
+    signal input_x, input_y : std_logic_vector(31 downto 0);
+    signal input_x_given, input_y_given : std_logic;
     signal OutputNumber : std_logic_vector(31 downto 0);
  
     -- My types
-    type StateType is (receiving_input, computing, computed);
-    signal State : StateType;
+    type state_type is (receiving_input, computing, computed);
+    signal state : state_type;
 
     -- Signals
-    signal BitsWrittenSoFar : std_logic_vector(2 downto 0);
+    signal bits_sent_so_far_for_X, bits_sent_so_far_for_Y : std_logic_vector(2 downto 0);
     signal WE_old : std_logic;
 begin
 
@@ -211,44 +212,64 @@ begin
     -- Note that for compatibility with FX2LP devices only addresses
     -- above 2000 Hex are used
     process (RST, CLK)
-        variable inputSFixed : custom_fixed_point_type;
-        -- variable outputSFixed : sfixed(31 downto -32);
-        variable outputSFixed : custom_fixed_point_type;
+        variable input_x_sfixed, input_y_sfixed : custom_fixed_point_type;
+        variable output_xy_sfixed : custom_fixed_point_type;
         constant mulFactor : custom_fixed_point_type := to_sfixed_custom(3.14159);
 
     begin
         if (RST='1') then
-            BitsWrittenSoFar <= "000";
-            InputNumber <= X"00000000";
+            bits_sent_so_far_for_X <= "000";
+            bits_sent_so_far_for_Y <= "000";
+            input_x <= X"00000000";
+            input_y <= X"00000000";
+            input_x_given <= '0';
+            input_y_given <= '0';
             OutputNumber <= X"00000000";
-            State <= receiving_input;
+            state <= receiving_input;
             WE_old <= '0';
         elsif (CLK'event and CLK='1') then
             WE_old <= WE;
-            case State is
-                when receiving_input =>
-                    if (WE='1' and WE_old = '0') then
-                        if Addr = X"207B" then
-                            InputNumber <= InputNumber(23 downto 0) & DataIn;
-                            if BitsWrittenSoFar = "011" then
-                                state <= computing;
-                                BitsWrittenSoFar <= "000";
-                            else 
-                                state <= receiving_input;
-                                BitsWrittenSoFar <= BitsWrittenSoFar + 1;
-                            end if;
+            -- Was the WE signal just raised?
+            if (WE='1' and WE_old = '0') then
+                case Addr is
+                    when X"207B" => 
+                        input_x <= input_x(23 downto 0) & DataIn;
+                        if bits_sent_so_far_for_X = "011" then
+                            input_x_given <= '1';
+                            bits_sent_so_far_for_X <= "000";
+                        else 
+                            input_x_given <= '0';
+                            bits_sent_so_far_for_X <= bits_sent_so_far_for_X + 1;
                         end if;
-                    end if; -- WE='1'
+                    when X"207C" => 
+                        input_y <= input_y(23 downto 0) & DataIn;
+                        if bits_sent_so_far_for_Y = "011" then
+                            input_y_given <= '1';
+                            bits_sent_so_far_for_Y <= "000";
+                        else 
+                            input_y_given <= '0';
+                            bits_sent_so_far_for_Y <= bits_sent_so_far_for_Y + 1;
+                        end if;
+                    when others =>
+                end case;
+            end if; -- WE='1'
+
+            case state is
+                when receiving_input =>
+                    if input_x_given = '1' and input_y_given = '1' then
+                        input_x_sfixed := to_sfixed_custom(input_x);
+                        input_y_sfixed := to_sfixed_custom(input_y);
+                        state <= computing;
+                    end if;
                     
                 when computing =>
-                   inputSFixed := to_sfixed_custom(InputNumber);
-                   outputSFixed := resize(inputSFixed * mulFactor, outputSFixed);
-                   State <= computed;
+                   output_xy_sfixed := resize(input_x_sfixed * input_y_sfixed * mulFactor, output_xy_sfixed);
+                   state <= computed;
 
                 when computed =>
-                   OutputNumber <= to_slv(outputSFixed);
+                   OutputNumber <= to_slv(output_xy_sfixed);
                    state <= receiving_input;
-            end case; -- case State is ...
+            end case; -- case state is ...
             
         end if; -- if CLK'event and CLK = '1' ...
     end process;

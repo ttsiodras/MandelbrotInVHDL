@@ -113,10 +113,10 @@ int main(int argc, char **argv)
     };
 
     //for(int i=0; i<100; i++) {
-        // double inputX = 0.4099999999999997;
-        // double inputY = -0.21500000000000008; // => 111
-        double inputX = 0.4399999999999995;
-        double inputY = 0.24999999999999978; // => 15
+        double inputX = 0.4099999999999997;
+        double inputY = -0.21500000000000008; // => 111
+        // double inputX = 0.4399999999999995;
+        // double inputY = 0.24999999999999978; // => 15
         SendParam(inputX, 0, true);
         SendParam(inputY, 1, true);
         usleep(10000);
@@ -127,8 +127,15 @@ int main(int argc, char **argv)
         cout << setw(10) << inputY;
         cout << ", got out: " << setw(10) << output << "\n";
 
-        unsigned magnitude = GetResult(0, 4, true);
+        unsigned mandel_x = GetResult(0, 4, true);
+        cout << "Mandel_x: " << to_double(mandel_x) << "\n\n";
+        unsigned mandel_y = GetResult(4, 4, true);
+        cout << "Mandel_y: " << to_double(mandel_y) << "\n\n";
+        unsigned magnitude = GetResult(8, 4, true);
         cout << "Magnitude: " << to_double(magnitude) << "\n\n";
+        unsigned borderValue = GetResult(12, 4, true);
+        cout << "Border: " << to_double(borderValue) << "\n\n";
+    //}
     //}
 
     //

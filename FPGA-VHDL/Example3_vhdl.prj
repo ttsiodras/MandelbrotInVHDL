@@ -1,6 +1,0 @@
-vhdl work "/home/ttsiod/Xilinx/KB/ZestSC1/VHDL/ZestSC1_SRAM.vhd"
-vhdl work "/home/ttsiod/Xilinx/KB/ZestSC1/VHDL/ZestSC1_Host.vhd"
-vhdl ieee_proposed "/home/ttsiod/Xilinx/KB/ZestSC1/Examples/Primes/ieee_proposed/fixed_float_types_c.vhd"
-vhdl work "/home/ttsiod/Xilinx/KB/ZestSC1/VHDL/ZestSC1_Interfaces.vhd"
-vhdl ieee_proposed "/home/ttsiod/Xilinx/KB/ZestSC1/Examples/Primes/ieee_proposed/fixed_pkg_c.vhd"
-vhdl work "/home/ttsiod/Xilinx/KB/ZestSC1/Examples/Primes/FPGA-VHDL/Example3.vhd"

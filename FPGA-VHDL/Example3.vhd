@@ -197,6 +197,8 @@ architecture arch of Example3 is
         comp_stage1,
         comp_stage2,
         comp_stage3,
+        comp_stage31,
+        comp_stage32,
         comp_stage4,
         computed);
     signal state : state_type;
@@ -204,17 +206,19 @@ architecture arch of Example3 is
     -- Signals
     signal bits_sent_so_far_for_X, bits_sent_so_far_for_Y : std_logic_vector(2 downto 0);
     signal WE_old : std_logic;
-    signal debug_magnitude : std_logic_vector(31 downto 0);
 
     -- Inner logic
     signal input_x_sfixed, input_y_sfixed : custom_fixed_point_type;
     signal x_mandel, y_mandel : custom_fixed_point_type;
     signal x_mandel_sq, y_mandel_sq, x_mandel_times_y_mandel, magnitude : custom_fixed_point_type;
     signal output_xy_sfixed : custom_fixed_point_type;
-    constant mulFactor : custom_fixed_point_type := to_sfixed_custom(3.14159);
+    constant borderValue : custom_fixed_point_type := to_sfixed_custom(4.0);
     signal pixel_color : unsigned(7 downto 0);
-    signal synced_magnitude : std_logic_vector(31 downto 0);
-
+    signal debug1 : std_logic_vector(31 downto 0);
+    signal debug2 : std_logic_vector(31 downto 0);
+    signal debug3 : std_logic_vector(31 downto 0);
+    signal debug4 : std_logic_vector(31 downto 0);
+    signal magnitude_slv : std_logic_vector(31 downto 0);
 begin
 
     -- Tie unused signals
@@ -228,10 +232,8 @@ begin
     -- Implement register write
     -- Note that for compatibility with FX2LP devices only addresses
     -- above 2000 Hex are used
-    process (RST, CLK, synced_magnitude)
+    process (RST, CLK)
     begin
-        debug_magnitude <= synced_magnitude;
-
         if (RST='1') then
             bits_sent_so_far_for_X <= "000";
             bits_sent_so_far_for_Y <= "000";
@@ -244,6 +246,7 @@ begin
             WE_old <= '0';
         elsif (CLK'event and CLK='1') then
             WE_old <= WE;
+            debug4 <= to_slv(borderValue);
 
             -- Was the WE signal just raised?
             if (WE='1' and WE_old = '0') then
@@ -284,46 +287,74 @@ begin
                     end if;
                 
                 when comp_stage1 =>
-                    x_mandel_times_y_mandel <= resize(to_sfixed_custom(2.0)*x_mandel*y_mandel, x_mandel_times_y_mandel);
-                    x_mandel_sq <= resize(x_mandel*x_mandel, x_mandel_sq);
-                    y_mandel_sq <= resize(y_mandel*y_mandel, y_mandel_sq);
-                    state <= comp_stage2;
+                    if pixel_color > 127 then
+                        state <= computed;
+                    else
+                        x_mandel_times_y_mandel <= resize(to_sfixed_custom(2.0)*x_mandel*y_mandel, x_mandel_times_y_mandel);
+                        x_mandel_sq <= resize(x_mandel*x_mandel, x_mandel_sq);
+                        y_mandel_sq <= resize(y_mandel*y_mandel, y_mandel_sq);
+                        state <= comp_stage2;
+                    end if;
 
                 when comp_stage2 =>
                     magnitude <= resize(x_mandel_sq + y_mandel_sq, magnitude);
+                    state <= comp_stage31;
+
+                when comp_stage31 =>
+                    magnitude_slv <= to_slv(magnitude);
+                    state <= comp_stage32;
+
+                when comp_stage32 =>
                     state <= comp_stage3;
 
                 when comp_stage3 =>
-                    if magnitude > to_sfixed_custom(4) or pixel_color >= 7 then
+                    debug3 <= to_slv(magnitude);
+                    if magnitude_slv(31 downto 18) /= "00000000000000" then
                         state <= computed;
                     else
                         state <= comp_stage4;
+                        OutputNumber <= std_logic_vector(pixel_color);
                     end if;
 
                 when comp_stage4 =>
                     pixel_color <= pixel_color + 1;
                     x_mandel <= resize(x_mandel_sq - y_mandel_sq + input_x_sfixed, x_mandel);
                     y_mandel <= resize(x_mandel_times_y_mandel + input_y_sfixed, y_mandel);
-                    synced_magnitude <= to_slv(x_mandel);
+                    debug1 <= to_slv(x_mandel);
+                    debug2 <= to_slv(y_mandel);
                     state <= comp_stage1;
 
                 when computed =>
-                   OutputNumber <= std_logic_vector(pixel_color);
                    state <= receiving_input;
             end case; -- case state is ...
             
         end if; -- if CLK'event and CLK = '1' ...
     end process;
 
-    process (RE, Addr)
+    process (RE, Addr, debug1, OutputNumber)
     begin
         if (RE='1') then
             case Addr is
             when X"207C" => DataOut <= OutputNumber(7 downto 0);
-            when X"2000" => DataOut <= debug_magnitude(7 downto 0);
-            when X"2001" => DataOut <= debug_magnitude(15 downto 8);
-            when X"2002" => DataOut <= debug_magnitude(23 downto 16);
-            when X"2003" => DataOut <= debug_magnitude(31 downto 24);
+            when X"2000" => DataOut <= debug1(7 downto 0);
+            when X"2001" => DataOut <= debug1(15 downto 8);
+            when X"2002" => DataOut <= debug1(23 downto 16);
+            when X"2003" => DataOut <= debug1(31 downto 24);
+
+            when X"2004" => DataOut <= debug2(7 downto 0);
+            when X"2005" => DataOut <= debug2(15 downto 8);
+            when X"2006" => DataOut <= debug2(23 downto 16);
+            when X"2007" => DataOut <= debug2(31 downto 24);
+
+            when X"2008" => DataOut <= debug3(7 downto 0);
+            when X"2009" => DataOut <= debug3(15 downto 8);
+            when X"200a" => DataOut <= debug3(23 downto 16);
+            when X"200b" => DataOut <= debug3(31 downto 24);
+
+            when X"200c" => DataOut <= debug4(7 downto 0);
+            when X"200d" => DataOut <= debug4(15 downto 8);
+            when X"200e" => DataOut <= debug4(23 downto 16);
+            when X"200f" => DataOut <= debug4(31 downto 24);
             when others => DataOut <= X"AA";
             end case;
         end if;

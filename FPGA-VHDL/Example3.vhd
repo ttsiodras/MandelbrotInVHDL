@@ -196,9 +196,8 @@ architecture arch of Example3 is
         receiving_input,
         comp_stage1,
         comp_stage2,
+        comp_stage21,
         comp_stage3,
-        comp_stage31,
-        comp_stage32,
         comp_stage4,
         computed);
     signal state : state_type;
@@ -298,13 +297,10 @@ begin
 
                 when comp_stage2 =>
                     magnitude <= resize(x_mandel_sq + y_mandel_sq, magnitude);
-                    state <= comp_stage31;
+                    state <= comp_stage21;
 
-                when comp_stage31 =>
+                when comp_stage21 =>
                     magnitude_slv <= to_slv(magnitude);
-                    state <= comp_stage32;
-
-                when comp_stage32 =>
                     state <= comp_stage3;
 
                 when comp_stage3 =>

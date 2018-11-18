@@ -195,8 +195,9 @@ architecture arch of Example3 is
     type state_type is (
         receiving_input,
         comp_stage1,
-        comp_stage2,
         comp_stage21,
+        comp_stage22,
+        comp_stage23,
         comp_stage3,
         comp_stage4,
         computed);
@@ -289,17 +290,21 @@ begin
                     if pixel_color > 127 then
                         state <= computed;
                     else
-                        x_mandel_times_y_mandel <= resize(to_sfixed_custom(2.0)*x_mandel*y_mandel, x_mandel_times_y_mandel);
+                        x_mandel_times_y_mandel <= resize(x_mandel*y_mandel, x_mandel_times_y_mandel);
                         x_mandel_sq <= resize(x_mandel*x_mandel, x_mandel_sq);
                         y_mandel_sq <= resize(y_mandel*y_mandel, y_mandel_sq);
-                        state <= comp_stage2;
+                        state <= comp_stage21;
                     end if;
 
-                when comp_stage2 =>
-                    magnitude <= resize(x_mandel_sq + y_mandel_sq, magnitude);
-                    state <= comp_stage21;
-
                 when comp_stage21 =>
+                    state <= comp_stage22;
+
+                when comp_stage22 =>
+                    magnitude <= resize(x_mandel_sq + y_mandel_sq, magnitude);
+                    x_mandel_times_y_mandel <= x_mandel_times_y_mandel sll 1;
+                    state <= comp_stage23;
+
+                when comp_stage23 =>
                     magnitude_slv <= to_slv(magnitude);
                     state <= comp_stage3;
 

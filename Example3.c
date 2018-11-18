@@ -34,11 +34,12 @@ void ErrorHandler(const char *Function,
 ZESTSC1_HANDLE Handle;
 unsigned char Result;
 
-void printByteAt(unsigned byteIdx)
+unsigned char printByteAt(unsigned byteIdx)
 {
     unsigned char res;
     ZestSC1ReadRegister(Handle, 0x2000+0x7c+byteIdx, &res);
     printf("0x%04x: %02x\n", 0x207c+(unsigned)byteIdx, (unsigned)res);
+    return res;
 }
 
 int main(int argc, char **argv)
@@ -83,26 +84,23 @@ int main(int argc, char **argv)
     ZestSC1ConfigureFromFile(Handle, "FPGA-VHDL/Example3.bit");
     ZestSC1SetSignalDirection(Handle, 0xf);
 
-    //for(int i=0; i<10; i++) {
-        ZestSC1WriteRegister(Handle, 0x2000+123, 0x00);
-        ZestSC1WriteRegister(Handle, 0x2000+123, 0x01);
-        ZestSC1WriteRegister(Handle, 0x2000+123, 0x00);
-        ZestSC1WriteRegister(Handle, 0x2000+123, 0x00);
-        printByteAt(3);
-        printByteAt(2);
-        printByteAt(1);
-        printByteAt(0);
-        ZestSC1WriteRegister(Handle, 0x2000+123, 0x00);
-        ZestSC1WriteRegister(Handle, 0x2000+123, 0x02);
-        ZestSC1WriteRegister(Handle, 0x2000+123, 0x80);
-        ZestSC1WriteRegister(Handle, 0x2000+123, 0x00);
-        printByteAt(3);
-        printByteAt(2);
-        printByteAt(1);
-        printByteAt(0);
-
-        // printf("...and computed: 0x%08x\n", res);
-    //}
+    for(int i=0; i<10; i++) {
+        double input = 1.0 * i;
+        unsigned inputFixed = (unsigned)(input*65536.);
+        ZestSC1WriteRegister(Handle, 0x2000+123, (inputFixed>>24) & 0xFF);
+        ZestSC1WriteRegister(Handle, 0x2000+123, (inputFixed>>16) & 0xFF);
+        ZestSC1WriteRegister(Handle, 0x2000+123, (inputFixed>>8) & 0xFF);
+        ZestSC1WriteRegister(Handle, 0x2000+123, (inputFixed>>0) & 0xFF);
+        unsigned output = 0;
+        output <<=8; output |= printByteAt(3);
+        output <<=8; output |= printByteAt(2);
+        output <<=8; output |= printByteAt(1);
+        output <<=8; output |= printByteAt(0);
+        printf("Sent in %f, got out: %f (expected: %f)\n\n",
+               input,
+               ((double)output) / 65536.,
+               3.14159*((double)inputFixed) / 65536.);
+    }
 
     //
     // Close the card

@@ -194,7 +194,9 @@ architecture arch of Example3 is
     -- My types
     type state_type is (
         receiving_input,
-        comp_stage1,
+        comp_stage11,
+        comp_stage12,
+        comp_stage13,
         comp_stage21,
         comp_stage22,
         comp_stage23,
@@ -281,20 +283,26 @@ begin
                         x_mandel <= to_sfixed_custom(0.0);
                         y_mandel <= to_sfixed_custom(0.0);
                         pixel_color <= X"00";
-                        state <= comp_stage1;
+                        state <= comp_stage11;
                         input_x_given <= '0';
                         input_y_given <= '0';
                     end if;
                 
-                when comp_stage1 =>
+                when comp_stage11 =>
                     if pixel_color > 127 then
                         state <= computed;
                     else
                         x_mandel_times_y_mandel <= resize(x_mandel*y_mandel, x_mandel_times_y_mandel);
-                        x_mandel_sq <= resize(x_mandel*x_mandel, x_mandel_sq);
-                        y_mandel_sq <= resize(y_mandel*y_mandel, y_mandel_sq);
-                        state <= comp_stage21;
+                        state <= comp_stage12;
                     end if;
+
+                when comp_stage12 =>
+                    x_mandel_sq <= resize(x_mandel*x_mandel, x_mandel_sq);
+                    state <= comp_stage13;
+
+                when comp_stage13 =>
+                    y_mandel_sq <= resize(y_mandel*y_mandel, y_mandel_sq);
+                    state <= comp_stage21;
 
                 when comp_stage21 =>
                     state <= comp_stage22;
@@ -323,7 +331,7 @@ begin
                     y_mandel <= resize(x_mandel_times_y_mandel + input_y_sfixed, y_mandel);
                     debug1 <= to_slv(x_mandel);
                     debug2 <= to_slv(y_mandel);
-                    state <= comp_stage1;
+                    state <= comp_stage11;
 
                 when computed =>
                    state <= receiving_input;

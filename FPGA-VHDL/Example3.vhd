@@ -214,7 +214,7 @@ begin
         variable inputSFixed : custom_fixed_point_type;
         -- variable outputSFixed : sfixed(31 downto -32);
         variable outputSFixed : custom_fixed_point_type;
-        constant mulFactor : custom_fixed_point_type := to_sfixed(3.14159, integerPart-1, -fractionalPart);
+        constant mulFactor : custom_fixed_point_type := to_sfixed_custom(3.14159);
 
     begin
         if (RST='1') then

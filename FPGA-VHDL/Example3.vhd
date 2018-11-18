@@ -194,10 +194,10 @@ architecture arch of Example3 is
     -- My types
     type state_type is (
         receiving_input,
-        computing_stage1,
-        computing_stage2,
-        computing_stage3,
-        computing_stage4,
+        comp_stage1,
+        comp_stage2,
+        comp_stage3,
+        comp_stage4,
         computed);
     signal state : state_type;
 
@@ -278,32 +278,34 @@ begin
                         x_mandel <= to_sfixed_custom(0.0);
                         y_mandel <= to_sfixed_custom(0.0);
                         pixel_color <= X"00";
-                        state <= computing_stage1;
+                        state <= comp_stage1;
+                        input_x_given <= '0';
+                        input_y_given <= '0';
                     end if;
                 
-                when computing_stage1 =>
+                when comp_stage1 =>
                     x_mandel_times_y_mandel <= resize(to_sfixed_custom(2.0)*x_mandel*y_mandel, x_mandel_times_y_mandel);
                     x_mandel_sq <= resize(x_mandel*x_mandel, x_mandel_sq);
                     y_mandel_sq <= resize(y_mandel*y_mandel, y_mandel_sq);
-                    state <= computing_stage2;
+                    state <= comp_stage2;
 
-                when computing_stage2 =>
+                when comp_stage2 =>
                     magnitude <= resize(x_mandel_sq + y_mandel_sq, magnitude);
-                    state <= computing_stage3;
+                    state <= comp_stage3;
 
-                when computing_stage3 =>
-                    if magnitude > to_sfixed_custom(4) or pixel_color >= 2 then
+                when comp_stage3 =>
+                    if magnitude > to_sfixed_custom(4) or pixel_color >= 7 then
                         state <= computed;
                     else
-                        state <= computing_stage4;
+                        state <= comp_stage4;
                     end if;
 
-                when computing_stage4 =>
+                when comp_stage4 =>
                     pixel_color <= pixel_color + 1;
                     x_mandel <= resize(x_mandel_sq - y_mandel_sq + input_x_sfixed, x_mandel);
                     y_mandel <= resize(x_mandel_times_y_mandel + input_y_sfixed, y_mandel);
                     synced_magnitude <= to_slv(x_mandel);
-                    state <= computing_stage1;
+                    state <= comp_stage1;
 
                 when computed =>
                    OutputNumber <= std_logic_vector(pixel_color);

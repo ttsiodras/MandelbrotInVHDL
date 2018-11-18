@@ -198,29 +198,107 @@ BEGIN
        USB_RegWR_n <= '1';
        USB_RegCS_n <= '0';
 
-       -- Write 0xDE
+       -- Write X
        USB_RegAddr <= X"207B";
-       USB_RegData <= X"DE";
+       USB_RegData <= X"00";
        USB_RegWR_n <= '1';
        wait for S_CLK_period;
        USB_RegWR_n <= '0';
        wait for S_CLK_period;
        wait for S_CLK_period;
 
-       -- Read BitsWrittenSoFar
-       USB_RegAddr <= X"207E";
-       USB_RegRD_n <= '1';
+       USB_RegAddr <= X"207B";
+       USB_RegData <= X"00";
+       USB_RegWR_n <= '1';
        wait for S_CLK_period;
+       USB_RegWR_n <= '0';
+       wait for S_CLK_period;
+       wait for S_CLK_period;
+
+       USB_RegAddr <= X"207B";
+       USB_RegData <= X"70";
+       USB_RegWR_n <= '1';
+       wait for S_CLK_period;
+       USB_RegWR_n <= '0';
+       wait for S_CLK_period;
+       wait for S_CLK_period;
+
+       USB_RegAddr <= X"207B";
+       USB_RegData <= X"a3";
+       USB_RegWR_n <= '1';
+       wait for S_CLK_period;
+       USB_RegWR_n <= '0';
+       wait for S_CLK_period;
+       wait for S_CLK_period;
+
+
+       -- Write X
+       USB_RegAddr <= X"207c";
+       USB_RegData <= X"00";
+       USB_RegWR_n <= '1';
+       wait for S_CLK_period;
+       USB_RegWR_n <= '0';
+       wait for S_CLK_period;
+       wait for S_CLK_period;
+
+       USB_RegAddr <= X"207c";
+       USB_RegData <= X"00";
+       USB_RegWR_n <= '1';
+       wait for S_CLK_period;
+       USB_RegWR_n <= '0';
+       wait for S_CLK_period;
+       wait for S_CLK_period;
+
+       USB_RegAddr <= X"207c";
+       USB_RegData <= X"3f";
+       USB_RegWR_n <= '1';
+       wait for S_CLK_period;
+       USB_RegWR_n <= '0';
+       wait for S_CLK_period;
+       wait for S_CLK_period;
+
+       USB_RegAddr <= X"207c";
+       USB_RegData <= X"ff";
+       USB_RegWR_n <= '1';
+       wait for S_CLK_period;
+       USB_RegWR_n <= '0';
+       wait for S_CLK_period;
+       wait for S_CLK_period;
+
+       wait for 20*S_CLK_period;
+
+       USB_RegAddr <= X"207C";
        USB_RegRD_n <= '0';
        wait for S_CLK_period;
+       USB_RegRD_n <= '1';
+       wait for S_CLK_period;
        wait for S_CLK_period;
 
-       -- Write 0xAD
-       USB_RegAddr <= X"207B";
-       USB_RegData <= X"AD";
-       USB_RegWR_n <= '1';
+       USB_RegAddr <= X"2000";
+       USB_RegRD_n <= '0';
        wait for S_CLK_period;
-       USB_RegWR_n <= '0';
+       USB_RegRD_n <= '1';
+       wait for S_CLK_period;
+       wait for S_CLK_period;
+
+       USB_RegAddr <= X"2001";
+       USB_RegRD_n <= '0';
+       wait for S_CLK_period;
+       USB_RegRD_n <= '1';
+       wait for S_CLK_period;
+       wait for S_CLK_period;
+
+       USB_RegAddr <= X"2002";
+       USB_RegRD_n <= '0';
+       wait for S_CLK_period;
+       USB_RegRD_n <= '1';
+       wait for S_CLK_period;
+       wait for S_CLK_period;
+
+       USB_RegAddr <= X"2003";
+       USB_RegRD_n <= '0';
+       wait for S_CLK_period;
+       USB_RegRD_n <= '1';
        wait for S_CLK_period;
        wait for S_CLK_period;
 

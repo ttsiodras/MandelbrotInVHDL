@@ -112,11 +112,13 @@ int main(int argc, char **argv)
         return result;
     };
 
-    for(int i=0; i<100; i++) {
-        double inputX = 2.2 + 0.1 * 0;
-        double inputY = 1.1 + 0.1 * 0;
-        SendParam(inputX, 0);
-        SendParam(inputY, 1);
+    //for(int i=0; i<100; i++) {
+        // double inputX = 0.4099999999999997;
+        // double inputY = -0.21500000000000008; // => 111
+        double inputX = 0.4399999999999995;
+        double inputY = 0.24999999999999978; // => 15
+        SendParam(inputX, 0, true);
+        SendParam(inputY, 1, true);
         usleep(10000);
         unsigned output = GetResult(0x7c, 1);
 
@@ -127,7 +129,7 @@ int main(int argc, char **argv)
 
         unsigned magnitude = GetResult(0, 4, true);
         cout << "Magnitude: " << to_double(magnitude) << "\n\n";
-    }
+    //}
 
     //
     // Close the card

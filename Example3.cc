@@ -115,7 +115,7 @@ int main(int argc, char **argv)
     double inputX = 0.4099999999999997;
     double inputY = -0.21500000000000008; // => 111
 
-    for(int i=0; i<10000; i++) {
+    for(int i=0; i<100; i++) {
         if (i&1) {
             inputX = 0.4099999999999997;
             inputY = -0.21500000000000008; // => 111

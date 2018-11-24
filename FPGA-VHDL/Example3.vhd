@@ -286,7 +286,7 @@ begin
                     end if;
                 
                 when comp_stage11 =>
-                    if pixel_color > 127 then
+                    if pixel_color(7) /= '0' then
                         state <= computed;
                     else
                         x_mandel_times_y_mandel <= resize(x_mandel*y_mandel, x_mandel_times_y_mandel);

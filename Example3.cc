@@ -20,7 +20,7 @@
 
 using std::cout, std::endl, std::setw;
 
-const unsigned FRACTIONAL_PART = 16;
+const unsigned FRACTIONAL_PART = 27;
 const double SCALE_FACTOR = ((double)(1<<FRACTIONAL_PART));
 
 double to_double(int x)

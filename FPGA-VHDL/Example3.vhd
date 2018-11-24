@@ -218,8 +218,6 @@ architecture arch of Example3 is
     signal pixel_color : unsigned(7 downto 0);
     signal debug1 : std_logic_vector(31 downto 0);
     signal debug2 : std_logic_vector(31 downto 0);
-    signal debug3 : std_logic_vector(31 downto 0);
-    signal debug4 : std_logic_vector(31 downto 0);
     signal magnitude_slv : std_logic_vector(31 downto 0);
 begin
 
@@ -248,7 +246,6 @@ begin
             WE_old <= '0';
         elsif (CLK'event and CLK='1') then
             WE_old <= WE;
-            debug4 <= to_slv(borderValue);
 
             -- Was the WE signal just raised?
             if (WE='1' and WE_old = '0') then
@@ -317,8 +314,7 @@ begin
                     state <= comp_stage3;
 
                 when comp_stage3 =>
-                    debug3 <= to_slv(magnitude);
-                    if magnitude_slv(31 downto 18) /= "00000000000000" then
+                    if magnitude_slv(31 downto 29) /= "000" then
                         state <= computed;
                     else
                         state <= comp_stage4;
@@ -340,10 +336,9 @@ begin
         end if; -- if CLK'event and CLK = '1' ...
     end process;
 
-    process (RE, Addr, debug1, OutputNumber)
+    process (Addr, debug1, OutputNumber)
     begin
-        if (RE='1') then
-            case Addr is
+        case Addr is
             when X"207C" => DataOut <= OutputNumber(7 downto 0);
             when X"2000" => DataOut <= debug1(7 downto 0);
             when X"2001" => DataOut <= debug1(15 downto 8);
@@ -355,18 +350,8 @@ begin
             when X"2006" => DataOut <= debug2(23 downto 16);
             when X"2007" => DataOut <= debug2(31 downto 24);
 
-            when X"2008" => DataOut <= debug3(7 downto 0);
-            when X"2009" => DataOut <= debug3(15 downto 8);
-            when X"200a" => DataOut <= debug3(23 downto 16);
-            when X"200b" => DataOut <= debug3(31 downto 24);
-
-            when X"200c" => DataOut <= debug4(7 downto 0);
-            when X"200d" => DataOut <= debug4(15 downto 8);
-            when X"200e" => DataOut <= debug4(23 downto 16);
-            when X"200f" => DataOut <= debug4(31 downto 24);
             when others => DataOut <= X"AA";
-            end case;
-        end if;
+        end case;
     end process;
 
     -- Instantiate interfaces component

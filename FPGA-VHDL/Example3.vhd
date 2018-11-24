@@ -318,7 +318,7 @@ begin
         end if; -- if CLK'event and CLK = '1' ...
     end process;
 
-    process (Addr, debug1, OutputNumber)
+    process (Addr, debug1, debug2, OutputNumber)
     begin
         case Addr is
             when X"207C" => DataOut <= OutputNumber(7 downto 0);

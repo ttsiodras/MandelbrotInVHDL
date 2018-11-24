@@ -12,7 +12,10 @@ clean:
 	rm $(OBJS)
 	
 $(TARGET): $(OBJS) ../../Lib/libZestSC1.a
-	$(CC) $(LDFLAGS) -o $(TARGET) $(OBJS) $(LIBS) -lstdc++
+	$(CC) $(LDFLAGS) -o $@ $^ $(LIBS) -lstdc++
+
+CreateImage: CreateImage.o ../../Lib/libZestSC1.a
+	$(CC) $(LDFLAGS) -o $@ $^ $(LIBS) -lstdc++
 
 ${BITFILE}:	FPGA-VHDL/Example3.vhd FPGA-VHDL/MyTypes.vhd FPGA-VHDL/Example3.tcl
 	cd FPGA-VHDL/ && xtclsh Example3.tcl   rebuild_project

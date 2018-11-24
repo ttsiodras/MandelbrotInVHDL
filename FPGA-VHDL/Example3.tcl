@@ -266,8 +266,8 @@ proc create_libraries {} {
    puts "$myScript: Creating libraries..."
 
    lib_vhdl new "ieee_proposed"
-      lib_vhdl add_file "ieee_proposed" "/home/ttsiod/Xilinx/KB/ZestSC1/Examples/Primes/ieee_proposed/fixed_pkg_c.vhd"
-      lib_vhdl add_file "ieee_proposed" "/home/ttsiod/Xilinx/KB/ZestSC1/Examples/Primes/ieee_proposed/fixed_float_types_c.vhd"
+      lib_vhdl add_file "ieee_proposed" "/home/ttsiod/Xilinx/KB/ZestSC1/Examples/MyMandelbrotInVHDL/ieee_proposed/fixed_pkg_c.vhd"
+      lib_vhdl add_file "ieee_proposed" "/home/ttsiod/Xilinx/KB/ZestSC1/Examples/MyMandelbrotInVHDL/ieee_proposed/fixed_float_types_c.vhd"
 
    # must close the project or library definitions aren't saved.
    project save
@@ -441,7 +441,7 @@ proc set_process_props {} {
    project set "Verilog Include Directories" "" -process "Synthesize - XST"
    project set "Verilog 2001" "true" -process "Synthesize - XST"
    project set "Verilog Macros" "" -process "Synthesize - XST"
-   project set "Work Directory" "/home/ttsiod/Xilinx/KB/ZestSC1/Examples/Primes/FPGA-VHDL/xst" -process "Synthesize - XST"
+   project set "Work Directory" "/home/ttsiod/Xilinx/KB/ZestSC1/Examples/MyMandelbrotInVHDL/FPGA-VHDL/xst" -process "Synthesize - XST"
    project set "Write Timing Constraints" "false" -process "Synthesize - XST"
    # Use the option "-use_new_parser yes" to properly work with the fixed_pkg from ieee_proposed
    project set "Other XST Command Line Options" "-use_new_parser yes" -process "Synthesize - XST"

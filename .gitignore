@@ -75,3 +75,5 @@ FPGA-VHDL/xst/
 FPGA-Verilog/
 example3
 **/*swp
+CreateImage.o
+mandel.pgm

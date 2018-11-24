@@ -194,14 +194,11 @@ architecture arch of Example3 is
     -- My types
     type state_type is (
         receiving_input,
-        comp_stage11,
-        comp_stage12,
-        comp_stage13,
-        comp_stage21,
-        comp_stage22,
-        comp_stage23,
+        comp_stage1,
+        comp_stage2,
         comp_stage3,
         comp_stage4,
+        comp_stage5,
         computed);
     signal state : state_type;
 
@@ -280,54 +277,45 @@ begin
                         x_mandel <= to_sfixed_custom(0.0);
                         y_mandel <= to_sfixed_custom(0.0);
                         pixel_color <= X"00";
-                        state <= comp_stage11;
+                        state <= comp_stage1;
                         input_x_given <= '0';
                         input_y_given <= '0';
                     end if;
                 
-                when comp_stage11 =>
+                when comp_stage1 =>
                     if pixel_color(7) /= '0' then
                         state <= computed;
                     else
                         x_mandel_times_y_mandel <= resize(x_mandel*y_mandel, x_mandel_times_y_mandel);
-                        state <= comp_stage12;
+                        x_mandel_sq <= resize(x_mandel*x_mandel, x_mandel_sq);
+                        y_mandel_sq <= resize(y_mandel*y_mandel, y_mandel_sq);
+                        state <= comp_stage2;
                     end if;
 
-                when comp_stage12 =>
-                    x_mandel_sq <= resize(x_mandel*x_mandel, x_mandel_sq);
-                    state <= comp_stage13;
-
-                when comp_stage13 =>
-                    y_mandel_sq <= resize(y_mandel*y_mandel, y_mandel_sq);
-                    state <= comp_stage21;
-
-                when comp_stage21 =>
-                    state <= comp_stage22;
-
-                when comp_stage22 =>
+                when comp_stage2 =>
                     magnitude <= resize(x_mandel_sq + y_mandel_sq, magnitude);
                     x_mandel_times_y_mandel <= x_mandel_times_y_mandel sll 1;
-                    state <= comp_stage23;
-
-                when comp_stage23 =>
-                    magnitude_slv <= to_slv(magnitude);
                     state <= comp_stage3;
 
                 when comp_stage3 =>
+                    magnitude_slv <= to_slv(magnitude);
+                    state <= comp_stage4;
+
+                when comp_stage4 =>
                     if magnitude_slv(31 downto 29) /= "000" then
                         state <= computed;
                     else
-                        state <= comp_stage4;
+                        state <= comp_stage5;
                         OutputNumber <= std_logic_vector(pixel_color);
                     end if;
 
-                when comp_stage4 =>
+                when comp_stage5 =>
                     pixel_color <= pixel_color + 1;
                     x_mandel <= resize(x_mandel_sq - y_mandel_sq + input_x_sfixed, x_mandel);
                     y_mandel <= resize(x_mandel_times_y_mandel + input_y_sfixed, y_mandel);
                     debug1 <= to_slv(x_mandel);
                     debug2 <= to_slv(y_mandel);
-                    state <= comp_stage11;
+                    state <= comp_stage1;
 
                 when computed =>
                    state <= receiving_input;

@@ -202,7 +202,7 @@ architecture arch of Example3 is
     signal state : state_type;
 
     -- Signals
-    signal bits_sent_so_far_for_X, bits_sent_so_far_for_Y : std_logic_vector(2 downto 0);
+    signal bits_sent_so_far_for_X, bits_sent_so_far_for_Y : natural range 0 to 7;
     signal WE_old : std_logic;
 
     -- Inner logic
@@ -232,8 +232,8 @@ begin
     process (RST, CLK)
     begin
         if (RST='1') then
-            bits_sent_so_far_for_X <= "000";
-            bits_sent_so_far_for_Y <= "000";
+            bits_sent_so_far_for_X <= 0;
+            bits_sent_so_far_for_Y <= 0;
             input_x <= X"00000000";
             input_y <= X"00000000";
             input_x_given <= '0';
@@ -249,18 +249,18 @@ begin
                 case Addr is
                     when X"207B" => 
                         input_x <= input_x(23 downto 0) & DataIn;
-                        if bits_sent_so_far_for_X = "011" then
+                        if bits_sent_so_far_for_X = 3 then
                             input_x_given <= '1';
-                            bits_sent_so_far_for_X <= "000";
+                            bits_sent_so_far_for_X <= 0;
                         else 
                             input_x_given <= '0';
                             bits_sent_so_far_for_X <= bits_sent_so_far_for_X + 1;
                         end if;
                     when X"207C" => 
                         input_y <= input_y(23 downto 0) & DataIn;
-                        if bits_sent_so_far_for_Y = "011" then
+                        if bits_sent_so_far_for_Y = 3 then
                             input_y_given <= '1';
-                            bits_sent_so_far_for_Y <= "000";
+                            bits_sent_so_far_for_Y <= 0;
                         else 
                             input_y_given <= '0';
                             bits_sent_so_far_for_Y <= bits_sent_so_far_for_Y + 1;

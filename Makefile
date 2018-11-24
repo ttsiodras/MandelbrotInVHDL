@@ -16,5 +16,5 @@ $(TARGET): $(OBJS) ../../Lib/libZestSC1.a
 
 ${BITFILE}:	FPGA-VHDL/Example3.vhd FPGA-VHDL/MyTypes.vhd FPGA-VHDL/Example3.tcl
 	cd FPGA-VHDL/ && xtclsh Example3.tcl   rebuild_project
-	grep "All constraints were met." FPGA-VHDL/Example3.twr || exit 1
-	grep "All constraints were met." FPGA-VHDL/Example3.par || exit 1
+	@grep "All constraints were met." FPGA-VHDL/Example3.twr || exit 1
+	@grep "All constraints were met." FPGA-VHDL/Example3.par || exit 1

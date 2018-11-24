@@ -300,7 +300,6 @@ begin
                         state <= computed;
                     else
                         state <= comp_stage4;
-                        OutputNumber <= std_logic_vector(pixel_color);
                     end if;
 
                 when comp_stage4 =>
@@ -312,6 +311,7 @@ begin
                     state <= comp_stage1;
 
                 when computed =>
+                   OutputNumber <= std_logic_vector(pixel_color);
                    state <= receiving_input;
             end case; -- case state is ...
             

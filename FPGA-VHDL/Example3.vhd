@@ -221,6 +221,8 @@ begin
     LEDs <= "11111111";
     IO_CLK_N <= 'Z';
     IO_CLK_P <= 'Z';
+    Interrupt <= '0';
+
     IO <= (0=>LEDs(0), 1=>LEDs(1), 41=>LEDs(2), 42=>LEDs(3), 43=>LEDs(4),
            44=>LEDs(5), 45=>LEDs(6), 46=>LEDs(7), others => 'Z');
 

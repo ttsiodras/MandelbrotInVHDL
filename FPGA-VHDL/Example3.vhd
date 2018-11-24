@@ -198,7 +198,6 @@ architecture arch of Example3 is
         comp_stage2,
         comp_stage3,
         comp_stage4,
-        comp_stage5,
         computed);
     signal state : state_type;
 
@@ -215,7 +214,6 @@ architecture arch of Example3 is
     signal pixel_color : unsigned(7 downto 0);
     signal debug1 : std_logic_vector(31 downto 0);
     signal debug2 : std_logic_vector(31 downto 0);
-    signal magnitude_slv : std_logic_vector(31 downto 0);
 begin
 
     -- Tie unused signals
@@ -298,18 +296,14 @@ begin
                     state <= comp_stage3;
 
                 when comp_stage3 =>
-                    magnitude_slv <= to_slv(magnitude);
-                    state <= comp_stage4;
-
-                when comp_stage4 =>
-                    if magnitude_slv(31 downto 29) /= "000" then
+                    if to_slv(magnitude)(31 downto 29) /= "000" then
                         state <= computed;
                     else
-                        state <= comp_stage5;
+                        state <= comp_stage4;
                         OutputNumber <= std_logic_vector(pixel_color);
                     end if;
 
-                when comp_stage5 =>
+                when comp_stage4 =>
                     pixel_color <= pixel_color + 1;
                     x_mandel <= resize(x_mandel_sq - y_mandel_sq + input_x_sfixed, x_mandel);
                     y_mandel <= resize(x_mandel_times_y_mandel + input_y_sfixed, y_mandel);

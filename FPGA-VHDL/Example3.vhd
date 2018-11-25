@@ -281,8 +281,6 @@ begin
                 when drawPixels =>
                     SRAMWE <= '0';
                     if PixelsToCompute /= 0 then
-                        SRAMAddr <= std_logic_vector(PixelAddrInSRAM);
-                        PixelAddrInSRAM <= PixelAddrInSRAM + 1;
                         PixelsToCompute <= PixelsToCompute - 1;
                         debug1 <= std_logic_vector(to_unsigned(PixelsToCompute, debug1'length));
                         startWorking <= '1';
@@ -296,9 +294,12 @@ begin
                     if finishedWorking = '0' then
                         state <= waitForMandelbrot;
                     else
-                        SRAMDataOut <= "0000000000" & OutputNumber;
+                        -- SRAMDataOut <= "0000000000" & OutputNumber;
+                        SRAMDataOut <= std_logic_vector(to_unsigned(PixelsToCompute, SRAMDataOut'length));
                         -- Go right by 3.3/320.0
                         input_x <= std_logic_vector(unsigned(input_x) + 1384120);
+                        SRAMAddr <= std_logic_vector(PixelAddrInSRAM);
+                        PixelAddrInSRAM <= PixelAddrInSRAM + 1;
                         state <= drawPixelsWaitForWrite;
                     end if;
 

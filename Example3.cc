@@ -125,46 +125,28 @@ int main(int argc, char **argv)
             printf("W:0x%08x: %02x\n", offset, (unsigned)data);
     };
 
-    if (argc > 1) {
-        double inputX = 0.4099999999999997;
-        double inputY = -0.21500000000000008; // => 112
+    double inputX = 0.4099999999999997;
+    double inputY = -0.21500000000000008; // => 112
 
-        puts("[-] Verifying 256 fractal calculations...");
-        for(int i=0; i<256; i++) {
-            if (i&1) {
-                inputX = 0.4099999999999997;
-                inputY = -0.21500000000000008; // => 112
-            } else {
-                inputX = 0.4399999999999995;
-                inputY = 0.24999999999999978; // => 16
-            }
-            SendParam(inputX, 0);
-            SendParam(inputY, 1);
-            putchar('.');
-            unsigned output = GetResult(0x7c, 1);
-            if (((i&1) && output != 112) || (!(i&1) && output != 16))
-                printf("\n[*] Failed! Pixel %d: %d\n", i&1, output);
+    // inputX = 0.4399999999999995;
+    // inputY = 0.24999999999999978; // => 16
 
-            // unsigned magnitude = GetResult(8, 4, true);
-            // cout << "Magnitude: " << to_double(magnitude) << "\n\n";
-        }
-        puts("\n[-] Verified!");
-    } else {
-        puts("[-] Verifying 256 write/reads...");
-        for(int i=0; i<256; i++) {
-            putchar('.');
-            //Write(0x2080, 0x00);
-            //Read(0x2004);
-            Write(0x207D, i);
-            //Read(0x2004);
-            Write(0x207E, 0xFF);
-            auto rd = Read(0x207D);
-            if (rd != i) {
-                puts("\n[*] Failed...");
-            }
-        }
-        puts("\n[-] Verified!");
+    SendParam(inputX, 0);
+    SendParam(inputY, 1);
+
+    puts("[-] Waiting for pixel line to be computed...");
+    unsigned output = 1;
+    do {
+        output = GetResult(0, 4, true);
+    } while(output);
+    puts("[-] Computed.");
+
+    for(int i=0; i<256; i++) {
+        Write(0x207E, (unsigned char)i);
+        Read(0x2010, true);
     }
+
+    // cout << "Magnitude: " << to_double(magnitude) << "\n\n";
 
     //
     // Close the card

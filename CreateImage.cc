@@ -64,16 +64,16 @@ int main(int argc, char **argv)
     // Request information about the system
     //
     ZestSC1CountCards(&NumCards, CardIDs, SerialNumbers, FPGATypes);
-    printf("%d available cards in the system\n\n\n", NumCards);
+    printf("[-] %d available cards in the system\n", NumCards);
     if (NumCards==0)
     {
-        printf("No cards in the system\n");
+        printf("[*] No cards in the system\n");
         exit(1);
     }
 
     for (Count=0; Count<NumCards; Count++)
     {
-        printf("%d : CardID = 0x%08lx, SerialNum = 0x%08lx, FPGAType = %d\n",
+        printf("[-] Card %d : CardID = 0x%08lx, SerialNum = 0x%08lx, FPGAType = %d\n",
             Count, CardIDs[Count], SerialNumbers[Count], FPGATypes[Count]);
     }
 
@@ -93,11 +93,11 @@ int main(int argc, char **argv)
     auto SendParam = [](double input, unsigned offset, bool debugPrint=false) {
         unsigned inputFixed = (unsigned)(input*SCALE_FACTOR);
         if (debugPrint)
-            printf("0x%04x: %08x\n", 0x207B+offset, inputFixed);
-        ZestSC1WriteRegister(Handle, 0x207B+offset, (inputFixed>>24) & 0xFF);
-        ZestSC1WriteRegister(Handle, 0x207B+offset, (inputFixed>>16) & 0xFF);
-        ZestSC1WriteRegister(Handle, 0x207B+offset, (inputFixed>>8) & 0xFF);
-        ZestSC1WriteRegister(Handle, 0x207B+offset, (inputFixed>>0) & 0xFF);
+            printf("0x%04x: %08x\n", offset, inputFixed);
+        ZestSC1WriteRegister(Handle, offset,   (inputFixed>>0)  & 0xFF);
+        ZestSC1WriteRegister(Handle, offset+1, (inputFixed>>8)  & 0xFF);
+        ZestSC1WriteRegister(Handle, offset+2, (inputFixed>>16) & 0xFF);
+        ZestSC1WriteRegister(Handle, offset+3, (inputFixed>>24) & 0xFF);
     };
 
     auto GetResult = [](unsigned offset, unsigned bytes, bool debugPrint=false) {
@@ -112,21 +112,61 @@ int main(int argc, char **argv)
         return result;
     };
 
-    double inputX = 0.4099999999999997;
-    double inputY = -0.21500000000000008; // => 111
+    auto Read = [](unsigned offset, bool debugPrint=false) {
+        unsigned char ub;
+        ZestSC1ReadRegister(Handle, offset, &ub);
+        if (debugPrint)
+            printf("R:0x%08x: %02x\n", offset, (unsigned)ub);
+        return ub;
+    };
+    auto Write = [](unsigned offset, unsigned char data, bool debugPrint=false) {
+        ZestSC1WriteRegister(Handle, offset, data);
+        if (debugPrint)
+            printf("W:0x%04x: %02x\n", offset, (unsigned)data);
+    };
+
+    // double inputX = 0.4099999999999997;
+    // double inputY = -0.21500000000000008; // => 112
+
+    // double inputX = 0.4399999999999995;
+    // double inputY = 0.24999999999999978; // => 16
 
     FILE *fp = fopen("mandel.pgm", "w");
-    fprintf(fp, "P5\n320 240\n255\n");
+    fprintf(fp, "P5\n256 240\n255\n");
 
     for(int y=0; y<240; y++) {
-        for(int x=0; x<320; x++) {
-            inputX = -2.2 + 3.3*double(x)/320.;
-            inputY = 1.1 - 2.2*double(y)/240.;
-            SendParam(inputX, 0);
-            SendParam(inputY, 1);
-            unsigned output = GetResult(0x7c, 1);
-            fprintf(fp, "%c", output&0xff);
+        double inputX = -2.2;
+        double inputY = 1.1 - 2.2*double(y)/240.;
+
+        //GetResult(4, 4, true);
+        SendParam(inputX, 0x2060);
+        //GetResult(4, 4, true);
+        SendParam(inputY, 0x2064);
+        //GetResult(4, 4, true);
+
+        // puts("[-] Waiting for pixel line to be computed...");
+        unsigned output = 1;
+        do {
+            //output = GetResult(4, 4, true);
+            output = GetResult(4, 4);
+        } while(output != 0x99999999);
+
+        // output = GetResult(0, 4, false);
+        // cout << "input_x: " << to_double(output) << "\n\n";
+
+        // auto debug1 = [&GetResult]() { printf("debug1: 0x%08x\n", GetResult(0, 4)); };
+        // auto debug2 = [&GetResult]() { printf("debug2: 0x%08x\n", GetResult(4, 4)); };
+
+        for(int i=0; i<256; i++) {
+            //debug2();
+            Write(0x207E, (unsigned char)i);
+            //debug2();
+            //printf("At SRAM[%d]: %04x\n", i, GetResult(0x10, 4));
+            unsigned color = Read(0x2010);
+            fprintf(fp, "%c", color&0xff);
+            //debug2();
         }
+
         printf("\b\b\b\b\b\b\b%03d/240", y); fflush(stdout);
     }
     fclose(fp);

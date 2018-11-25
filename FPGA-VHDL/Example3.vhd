@@ -158,7 +158,8 @@ architecture arch of Example3 is
         drawPixelsWaitForWrite,
         waitForMandelbrot,
         doneComputingWaitForReading,
-        reading
+        reading1stCycle,
+        reading2ndCycle
     );
     signal state : state_type;
 
@@ -258,8 +259,8 @@ begin
                     if mandelEngineFinished = '0' then
                         state <= waitForMandelbrot;
                     else
-                        -- SRAMDataOut <= "0000000000" & OutputNumber;
-                        SRAMDataOut <= std_logic_vector(to_unsigned(PixelsToCompute, SRAMDataOut'length));
+                        SRAMDataOut <= "0000000000" & OutputNumber;
+                        -- SRAMDataOut <= std_logic_vector(to_unsigned(PixelsToCompute, SRAMDataOut'length));
                         -- Go right by 3.3/320.0
                         input_x <= std_logic_vector(unsigned(input_x) + 1384120);
                         SRAMAddr <= std_logic_vector(PixelAddrInSRAM);
@@ -277,18 +278,22 @@ begin
                     if startReading = '1' then
                         startReading <= '0';
                         SRAMRE <= '1';
-                        state <= reading;
+                        state <= reading1stCycle;
                     else
                         state <= doneComputingWaitForReading;
                     end if;
 
-                when reading =>
+                when reading1stCycle =>
                     SRAMRE <= '0';
+                    state <= reading2ndCycle;
+
+                when reading2ndCycle =>
                     if SRAMValid = '1' then
                         TestByteRead <= SRAMDataIn;
-                        state <= receiving_input;
+                        state <= doneComputingWaitForReading;
+                        -- debug2 <= X"EEEEEEEE";
                     else
-                        state <= reading;
+                        state <= reading2ndCycle;
                     end if;
 
             end case; -- case state is ...
@@ -309,6 +314,9 @@ begin
             when X"2007" => DataOut <= debug2(31 downto 24);
 
             when X"2010" => DataOut <= TestByteRead(7 downto 0);
+            when X"2011" => DataOut <= TestByteRead(15 downto 8);
+            when X"2012" => DataOut <= "000000" & TestByteRead(17 downto 16);
+            when X"2013" => DataOut <= X"00";
 
             when others => DataOut <= X"AA";
         end case;

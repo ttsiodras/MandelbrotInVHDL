@@ -112,14 +112,17 @@ int main(int argc, char **argv)
         return result;
     };
 
-    auto Read = [](unsigned offset) {
+    auto Read = [](unsigned offset, bool debugPrint=false) {
         unsigned char ub;
         ZestSC1ReadRegister(Handle, offset, &ub);
-        printf("R:0x%08x: %02x\n", offset, (unsigned)ub);
+        if (debugPrint)
+            printf("R:0x%08x: %02x\n", offset, (unsigned)ub);
+        return ub;
     };
-    auto Write = [](unsigned offset, unsigned char data) {
+    auto Write = [](unsigned offset, unsigned char data, bool debugPrint=false) {
         ZestSC1WriteRegister(Handle, offset, data);
-        printf("W:0x%08x: %02x\n", offset, (unsigned)data);
+        if (debugPrint)
+            printf("W:0x%08x: %02x\n", offset, (unsigned)data);
     };
 
     if (argc > 1) {
@@ -143,16 +146,18 @@ int main(int argc, char **argv)
             // cout << "Magnitude: " << to_double(magnitude) << "\n\n";
         }
     } else {
+        puts("Verifying 256 write/reads...");
         for(int i=0; i<100; i++) {
+            putchar('.');
             //Write(0x2080, 0x00);
             //Read(0x2004);
             Write(0x207D, i);
             //Read(0x2004);
             Write(0x207E, 0xFF);
-            Read(0x207D);
-            //Read(0x2000);
-            //Read(0x207E);
-            puts("");
+            auto rd = Read(0x207D);
+            if (rd != i) {
+                puts("\nFailed...");
+            }
         }
     }
 

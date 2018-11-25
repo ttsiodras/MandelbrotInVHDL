@@ -140,17 +140,18 @@ int main(int argc, char **argv)
     puts("[-] Waiting for pixel line to be computed...");
     unsigned output = 1;
     do {
-        GetResult(4, 4, true);
-        output = GetResult(0, 4, true);
-    } while(output != 1);
+        output = GetResult(4, 4, true);
+    } while(output != 0x99999999);
     puts("[-] Computed.");
+
+    output = GetResult(0, 4, true);
+    cout << "input_x: " << to_double(output) << "\n\n";
+
 
     for(int i=0; i<1; i++) {
         Write(0x207E, (unsigned char)i);
         Read(0x2010, true);
     }
-
-    // cout << "Magnitude: " << to_double(magnitude) << "\n\n";
 
     //
     // Close the card

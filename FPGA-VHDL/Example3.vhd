@@ -273,6 +273,7 @@ begin
 
                 when doneComputingWaitForReading =>
                     debug2 <= X"99999999";
+                    debug1 <= input_x;
                     if startReading = '1' then
                         startReading <= '0';
                         SRAMRE <= '1';

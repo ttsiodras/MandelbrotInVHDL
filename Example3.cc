@@ -93,11 +93,11 @@ int main(int argc, char **argv)
     auto SendParam = [](double input, unsigned offset, bool debugPrint=false) {
         unsigned inputFixed = (unsigned)(input*SCALE_FACTOR);
         if (debugPrint)
-            printf("0x%04x: %08x\n", 0x207B+offset, inputFixed);
-        ZestSC1WriteRegister(Handle, 0x207B+offset, (inputFixed>>24) & 0xFF);
-        ZestSC1WriteRegister(Handle, 0x207B+offset, (inputFixed>>16) & 0xFF);
-        ZestSC1WriteRegister(Handle, 0x207B+offset, (inputFixed>>8) & 0xFF);
-        ZestSC1WriteRegister(Handle, 0x207B+offset, (inputFixed>>0) & 0xFF);
+            printf("0x%04x: %08x\n", offset, inputFixed);
+        ZestSC1WriteRegister(Handle, offset,   (inputFixed>>0)  & 0xFF);
+        ZestSC1WriteRegister(Handle, offset+1, (inputFixed>>8)  & 0xFF);
+        ZestSC1WriteRegister(Handle, offset+2, (inputFixed>>16) & 0xFF);
+        ZestSC1WriteRegister(Handle, offset+3, (inputFixed>>24) & 0xFF);
     };
 
     auto GetResult = [](unsigned offset, unsigned bytes, bool debugPrint=false) {
@@ -131,17 +131,21 @@ int main(int argc, char **argv)
     // inputX = 0.4399999999999995;
     // inputY = 0.24999999999999978; // => 16
 
-    SendParam(inputX, 0);
-    SendParam(inputY, 1);
+    GetResult(4, 4, true);
+    SendParam(inputX, 0x2060);
+    GetResult(4, 4, true);
+    SendParam(inputY, 0x2064);
+    GetResult(4, 4, true);
 
     puts("[-] Waiting for pixel line to be computed...");
     unsigned output = 1;
     do {
+        GetResult(4, 4, true);
         output = GetResult(0, 4, true);
-    } while(output);
+    } while(output != 1);
     puts("[-] Computed.");
 
-    for(int i=0; i<256; i++) {
+    for(int i=0; i<1; i++) {
         Write(0x207E, (unsigned char)i);
         Read(0x2010, true);
     }

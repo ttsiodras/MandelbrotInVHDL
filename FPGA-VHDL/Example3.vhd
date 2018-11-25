@@ -207,11 +207,11 @@ architecture arch of Example3 is
         idle,
         read,
         receiving_input,
-        comp_stage1 --,
---        comp_stage2,
---        comp_stage3,
---        comp_stage4,
---        computed
+        comp_stage1,
+        comp_stage2,
+        comp_stage3,
+        comp_stage4,
+        computed
     );
     signal state : state_type;
 
@@ -345,39 +345,38 @@ begin
                     end if;
                 
                 when comp_stage1 =>
-                    state <= receiving_input;
---                    if pixel_color(7) /= '0' then
---                        state <= computed;
---                    else
---                        x_mandel_times_y_mandel <= resize(x_mandel*y_mandel, x_mandel_times_y_mandel);
---                        x_mandel_sq <= resize(x_mandel*x_mandel, x_mandel_sq);
---                        y_mandel_sq <= resize(y_mandel*y_mandel, y_mandel_sq);
---                        state <= comp_stage2;
---                    end if;
---
---                when comp_stage2 =>
---                    magnitude <= resize(x_mandel_sq + y_mandel_sq, magnitude);
---                    x_mandel_times_y_mandel <= x_mandel_times_y_mandel sll 1;
---                    state <= comp_stage3;
---
---                when comp_stage3 =>
---                    if to_slv(magnitude)(31 downto 29) /= "000" then
---                        state <= computed;
---                    else
---                        state <= comp_stage4;
---                    end if;
---
---                when comp_stage4 =>
---                    pixel_color <= pixel_color + 1;
---                    x_mandel <= resize(x_mandel_sq - y_mandel_sq + input_x_sfixed, x_mandel);
---                    y_mandel <= resize(x_mandel_times_y_mandel + input_y_sfixed, y_mandel);
---                    debug1 <= to_slv(x_mandel);
---                    debug2 <= to_slv(y_mandel);
---                    state <= comp_stage1;
---
---                when computed =>
---                   OutputNumber <= std_logic_vector(pixel_color);
---                   state <= receiving_input;
+                    if pixel_color(7) /= '0' then
+                        state <= computed;
+                    else
+                        x_mandel_times_y_mandel <= resize(x_mandel*y_mandel, x_mandel_times_y_mandel);
+                        x_mandel_sq <= resize(x_mandel*x_mandel, x_mandel_sq);
+                        y_mandel_sq <= resize(y_mandel*y_mandel, y_mandel_sq);
+                        state <= comp_stage2;
+                    end if;
+
+                when comp_stage2 =>
+                    magnitude <= resize(x_mandel_sq + y_mandel_sq, magnitude);
+                    x_mandel_times_y_mandel <= x_mandel_times_y_mandel sll 1;
+                    state <= comp_stage3;
+
+                when comp_stage3 =>
+                    if to_slv(magnitude)(31 downto 29) /= "000" then
+                        state <= computed;
+                    else
+                        state <= comp_stage4;
+                    end if;
+
+                when comp_stage4 =>
+                    pixel_color <= pixel_color + 1;
+                    x_mandel <= resize(x_mandel_sq - y_mandel_sq + input_x_sfixed, x_mandel);
+                    y_mandel <= resize(x_mandel_times_y_mandel + input_y_sfixed, y_mandel);
+                    debug1 <= to_slv(x_mandel);
+                    debug2 <= to_slv(y_mandel);
+                    state <= comp_stage1;
+
+                when computed =>
+                   OutputNumber <= std_logic_vector(pixel_color);
+                   state <= receiving_input;
             end case; -- case state is ...
             
         end if; -- if CLK'event and CLK = '1' ...

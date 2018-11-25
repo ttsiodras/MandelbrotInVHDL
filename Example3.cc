@@ -122,7 +122,7 @@ int main(int argc, char **argv)
         printf("W:0x%08x: %02x\n", offset, (unsigned)data);
     };
 
-    if (0) {
+    if (1) {
         double inputX = 0.4099999999999997;
         double inputY = -0.21500000000000008; // => 111
 

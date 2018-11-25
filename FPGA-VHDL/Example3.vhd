@@ -1,10 +1,9 @@
 library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
-use IEEE.STD_LOGIC_ARITH.ALL;
-use IEEE.STD_LOGIC_UNSIGNED.ALL;
+use IEEE.NUMERIC_STD.ALL;
 
 library ieee_proposed;
-use ieee_proposed.fixed_pkg.all;
+use ieee_proposed.fixed_pkg.to_sfixed_custom;
 
 use work.custom_fixed_point_types.all;
 
@@ -159,10 +158,10 @@ architecture arch of Example3 is
 
     -- My types
     type state_type is (
-        write,
-        idle,
-        read,
+        reading,
         receiving_input,
+        drawPixels,
+        drawPixelsWaitForWrite,
         waitForMandelbrot
     );
     signal state : state_type;
@@ -177,14 +176,15 @@ architecture arch of Example3 is
     signal x_mandel_sq, y_mandel_sq, x_mandel_times_y_mandel, magnitude : custom_fixed_point_type;
     signal output_xy_sfixed : custom_fixed_point_type;
     constant borderValue : custom_fixed_point_type := to_sfixed_custom(4.0);
-    signal pixel_color : unsigned(7 downto 0);
     signal debug1 : std_logic_vector(31 downto 0);
     signal debug2 : std_logic_vector(31 downto 0);
 
     signal startReading : std_logic := '0';
-    signal startWriting : std_logic := '0';
     signal input_x_given, input_y_given : std_logic;
     signal TestByteRead : std_logic_vector(17 downto 0);
+
+    signal PixelsToCompute : natural range 0 to 1023;
+    signal PixelAddrInSRAM : unsigned(22 downto 0);
 
     -- Signals used to interface with Mandelbrot engine
     signal input_x, input_y : std_logic_vector(31 downto 0);
@@ -247,70 +247,73 @@ begin
                             bits_sent_so_far_for_Y <= bits_sent_so_far_for_Y + 1;
                         end if;
 
-                    when X"207D" =>
-                        SRAMDataOut <= "0000000000" & DataIn;
-                        SRAMAddr <= (others => '0');
-                        SRAMWE <= '0';
-                        startWriting <= '1';
-
                     when X"207E" =>
-                        SRAMRE <= '1';
                         startReading <= '1';
+                        SRAMAddr <= "000000000000000" & DataIn;
 
                     when others =>
                 end case;
             end if; -- WE='1'
 
             case state is
-                when write =>
-                    SRAMWE <= '1';
-                    state <= idle;
-
-                when idle =>
-                    SRAMWE <= '0';
-                    state <= receiving_input;
-
-                when read =>
+                when reading =>
+                    SRAMRE <= '0';
                     if SRAMValid = '1' then
                         TestByteRead <= SRAMDataIn;
                         state <= receiving_input;
                     else
-                        state <= read;
+                        state <= reading;
                     end if;
 
                 when receiving_input =>
                     if startReading = '1' then
                         startReading <= '0';
-                        SRAMRE <= '0';
-                        state <= read;
-                    elsif startWriting = '1' then
-                        startWriting <= '0';
-                        state <= write;
+                        SRAMRE <= '1';
+                        state <= reading;
                     elsif input_x_given = '1' and input_y_given = '1' then
-                        startWorking <= '1';
+                        PixelsToCompute <= 320;
+                        PixelAddrInSRAM <= (others => '0');
                         input_x_given <= '0';
                         input_y_given <= '0';
-                        debug1 <= X"00000000";
+                        state <= drawPixels;
+                    end if;
+
+                when drawPixels =>
+                    SRAMWE <= '0';
+                    if PixelsToCompute /= 0 then
+                        SRAMAddr <= std_logic_vector(PixelAddrInSRAM);
+                        PixelAddrInSRAM <= PixelAddrInSRAM + 1;
+                        PixelsToCompute <= PixelsToCompute - 1;
+                        debug1 <= std_logic_vector(to_unsigned(PixelsToCompute, debug1'length));
+                        startWorking <= '1';
                         state <= waitForMandelbrot;
+                    else
+                        state <= receiving_input;
                     end if;
 
                 when waitForMandelbrot =>
+                    startWorking <= '0'; -- finish pulse
                     if finishedWorking = '0' then
                         state <= waitForMandelbrot;
                     else
-                        debug1 <= X"DEADBEEF";
-                        state <= receiving_input;
+                        SRAMDataOut <= "0000000000" & OutputNumber;
+                        -- Go right by 3.3/320.0
+                        input_x <= std_logic_vector(unsigned(input_x) + 1384120);
+                        state <= drawPixelsWaitForWrite;
                     end if;
+
+                when drawPixelsWaitForWrite =>
+                    SRAMWE <= '1';
+                    state <= drawPixels;
+
             end case; -- case state is ...
         end if; -- if rising_edge(CLK) ...
     end process;
 
-    process (Addr, debug1, debug2, OutputNumber, TestByteRead)
+    process (Addr, debug1, debug2, TestByteRead)
     begin
         case Addr is
-            when X"207C" => DataOut <= OutputNumber(7 downto 0);
-            when X"207D" => DataOut <= TestByteRead(7 downto 0);
-            when X"207E" => DataOut <= x"DE";
+            when X"2010" => DataOut <= TestByteRead(7 downto 0);
 
             when X"2000" => DataOut <= debug1(7 downto 0);
             when X"2001" => DataOut <= debug1(15 downto 8);

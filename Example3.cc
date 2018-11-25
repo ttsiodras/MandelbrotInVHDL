@@ -112,37 +112,49 @@ int main(int argc, char **argv)
         return result;
     };
 
-    double inputX = 0.4099999999999997;
-    double inputY = -0.21500000000000008; // => 111
+    auto Read = [](unsigned offset) {
+        unsigned char ub;
+        ZestSC1ReadRegister(Handle, offset, &ub);
+        printf("R:0x%08x: %02x\n", offset, (unsigned)ub);
+    };
+    auto Write = [](unsigned offset, unsigned char data) {
+        ZestSC1WriteRegister(Handle, offset, data);
+        printf("W:0x%08x: %02x\n", offset, (unsigned)data);
+    };
 
-    for(int i=0; i<100; i++) {
-        if (i&1) {
-            inputX = 0.4099999999999997;
-            inputY = -0.21500000000000008; // => 111
-        } else {
-            inputX = 0.4399999999999995;
-            inputY = 0.24999999999999978; // => 15
+    if (0) {
+        double inputX = 0.4099999999999997;
+        double inputY = -0.21500000000000008; // => 111
+
+        for(int i=0; i<100; i++) {
+            if (i&1) {
+                inputX = 0.4099999999999997;
+                inputY = -0.21500000000000008; // => 111
+            } else {
+                inputX = 0.4399999999999995;
+                inputY = 0.24999999999999978; // => 15
+            }
+            SendParam(inputX, 0);
+            SendParam(inputY, 1);
+            unsigned output = GetResult(0x7c, 1);
+            printf("%d\n", output);
+
+            // unsigned magnitude = GetResult(8, 4, true);
+            // cout << "Magnitude: " << to_double(magnitude) << "\n\n";
         }
-        SendParam(inputX, 0);
-        SendParam(inputY, 1);
-        unsigned output = GetResult(0x7c, 1);
-        printf("%d\n", output);
-
-        // cout << "Sent in: ";
-        // cout << setw(10) << inputX << ",";
-        // cout << setw(10) << inputY;
-        // cout << ", got out: " << setw(10) << output << "\n";
-
-        // unsigned mandel_x = GetResult(0, 4, true);
-        // cout << "Mandel_x: " << to_double(mandel_x) << "\n\n";
-        // unsigned mandel_y = GetResult(4, 4, true);
-        // cout << "Mandel_y: " << to_double(mandel_y) << "\n\n";
-        // unsigned magnitude = GetResult(8, 4, true);
-        // cout << "Magnitude: " << to_double(magnitude) << "\n\n";
-        // unsigned borderValue = GetResult(12, 4, true);
-        // cout << "Border: " << to_double(borderValue) << "\n\n";
+    } else {
+        for(int i=0; i<100; i++) {
+            //Write(0x2080, 0x00);
+            //Read(0x2004);
+            Write(0x207D, i);
+            //Read(0x2004);
+            Write(0x207E, 0xFF);
+            Read(0x207D);
+            //Read(0x2000);
+            //Read(0x207E);
+            puts("");
+        }
     }
-    //}
 
     //
     // Close the card

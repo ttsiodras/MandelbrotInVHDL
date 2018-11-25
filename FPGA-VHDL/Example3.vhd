@@ -171,7 +171,6 @@ architecture arch of Example3 is
         );
     end component;
 
-    -- Declare signals
     signal CLK : std_logic;
     signal RST : std_logic;
     signal LEDs : std_logic_vector(7 downto 0);
@@ -183,6 +182,17 @@ architecture arch of Example3 is
     signal WE : std_logic;
     signal RE : std_logic;
 
+    -- SRAM interface
+    signal SRAMAddr : std_logic_vector(22 downto 0);
+    signal SRAMDataOut : std_logic_vector(17 downto 0);
+    signal SRAMDataIn : std_logic_vector(17 downto 0);
+    signal SRAMWE : std_logic;
+    signal SRAMRE : std_logic;
+    signal SRAMValid : std_logic;
+
+    signal TestByteWrite : std_logic_vector(17 downto 0);
+    signal TestByteRead : std_logic_vector(17 downto 0);
+
     -- Interrupt signal
     signal Interrupt : std_logic;
 
@@ -193,12 +203,16 @@ architecture arch of Example3 is
  
     -- My types
     type state_type is (
+        write,
+        idle,
+        read,
         receiving_input,
-        comp_stage1,
-        comp_stage2,
-        comp_stage3,
-        comp_stage4,
-        computed);
+        comp_stage1 --,
+--        comp_stage2,
+--        comp_stage3,
+--        comp_stage4,
+--        computed
+    );
     signal state : state_type;
 
     -- Signals
@@ -214,6 +228,9 @@ architecture arch of Example3 is
     signal pixel_color : unsigned(7 downto 0);
     signal debug1 : std_logic_vector(31 downto 0);
     signal debug2 : std_logic_vector(31 downto 0);
+
+    signal startReading : std_logic := '0';
+    signal startWriting : std_logic := '0';
 begin
 
     -- Tie unused signals
@@ -226,9 +243,7 @@ begin
     IO <= (0=>LEDs(0), 1=>LEDs(1), 41=>LEDs(2), 42=>LEDs(3), 43=>LEDs(4),
            44=>LEDs(5), 45=>LEDs(6), 46=>LEDs(7), others => 'Z');
 
-    -- Implement register write
-    -- Note that for compatibility with FX2LP devices only addresses
-    -- above 2000 Hex are used
+
     process (RST, CLK)
     begin
         if (RST='1') then
@@ -241,13 +256,18 @@ begin
             OutputNumber <= X"00";
             state <= receiving_input;
             WE_old <= '0';
-        elsif (CLK'event and CLK='1') then
+            SRAMDataOut <= (others => '0');
+            debug1 <= (others => '0');
+            debug2 <= (others => '0');
+
+        elsif rising_edge(CLK) then
             WE_old <= WE;
 
             -- Was the WE signal just raised?
             if (WE='1' and WE_old = '0') then
                 case Addr is
                     when X"207B" => 
+                        debug2 <= X"00000000";
                         input_x <= input_x(23 downto 0) & DataIn;
                         if bits_sent_so_far_for_X = 3 then
                             input_x_given <= '1';
@@ -257,6 +277,7 @@ begin
                             bits_sent_so_far_for_X <= bits_sent_so_far_for_X + 1;
                         end if;
                     when X"207C" => 
+                        debug2 <= X"00000000";
                         input_y <= input_y(23 downto 0) & DataIn;
                         if bits_sent_so_far_for_Y = 3 then
                             input_y_given <= '1';
@@ -265,65 +286,110 @@ begin
                             input_y_given <= '0';
                             bits_sent_so_far_for_Y <= bits_sent_so_far_for_Y + 1;
                         end if;
+                    when X"207D" =>
+                        debug2 <= X"00000000";
+                        TestByteWrite <= "0000000000" & DataIn;
+                        SRAMAddr <= (others => '0');
+                        SRAMWE <= '0';
+                        SRAMRE <= '0';
+                        startWriting <= '1';
+
+                    when X"207E" =>
+                        debug2 <= X"00000000";
+                        SRAMWE <= '0';
+                        SRAMRE <= '1';
+                        startReading <= '1';
+
                     when others =>
+                        debug2 <= X"00000000";
                 end case;
             end if; -- WE='1'
 
             case state is
+                when write =>
+                    SRAMWE <= '1';
+                    debug2 <= X"0DEADBEE";
+                    state <= idle;
+
+                when idle =>
+                    SRAMWE <= '0';
+                    state <= receiving_input;
+
+                when read =>
+                    SRAMRE <= '0';
+                    if SRAMValid = '1' then
+                        TestByteRead <= SRAMDataIn;
+                        debug1 <= X"DEADBEEF";
+                        state <= idle;
+                    else
+                        state <= read;
+                    end if;
+
                 when receiving_input =>
-                    if input_x_given = '1' and input_y_given = '1' then
+                    if startReading = '1' then
+                        startReading <= '0';
+                        state <= read;
+                    elsif startWriting = '1' then
+                        startWriting <= '0';
+                        SRAMDataOut <= TestByteWrite;
+                        state <= write;
+                    elsif input_x_given = '1' and input_y_given = '1' then
                         input_x_sfixed <= to_sfixed_custom(input_x);
                         input_y_sfixed <= to_sfixed_custom(input_y);
                         x_mandel <= to_sfixed_custom(0.0);
                         y_mandel <= to_sfixed_custom(0.0);
                         pixel_color <= X"00";
-                        state <= comp_stage1;
                         input_x_given <= '0';
                         input_y_given <= '0';
+                        state <= comp_stage1;
                     end if;
                 
                 when comp_stage1 =>
-                    if pixel_color(7) /= '0' then
-                        state <= computed;
-                    else
-                        x_mandel_times_y_mandel <= resize(x_mandel*y_mandel, x_mandel_times_y_mandel);
-                        x_mandel_sq <= resize(x_mandel*x_mandel, x_mandel_sq);
-                        y_mandel_sq <= resize(y_mandel*y_mandel, y_mandel_sq);
-                        state <= comp_stage2;
-                    end if;
-
-                when comp_stage2 =>
-                    magnitude <= resize(x_mandel_sq + y_mandel_sq, magnitude);
-                    x_mandel_times_y_mandel <= x_mandel_times_y_mandel sll 1;
-                    state <= comp_stage3;
-
-                when comp_stage3 =>
-                    if to_slv(magnitude)(31 downto 29) /= "000" then
-                        state <= computed;
-                    else
-                        state <= comp_stage4;
-                    end if;
-
-                when comp_stage4 =>
-                    pixel_color <= pixel_color + 1;
-                    x_mandel <= resize(x_mandel_sq - y_mandel_sq + input_x_sfixed, x_mandel);
-                    y_mandel <= resize(x_mandel_times_y_mandel + input_y_sfixed, y_mandel);
-                    debug1 <= to_slv(x_mandel);
-                    debug2 <= to_slv(y_mandel);
-                    state <= comp_stage1;
-
-                when computed =>
-                   OutputNumber <= std_logic_vector(pixel_color);
-                   state <= receiving_input;
+                    state <= receiving_input;
+--                    if pixel_color(7) /= '0' then
+--                        state <= computed;
+--                    else
+--                        x_mandel_times_y_mandel <= resize(x_mandel*y_mandel, x_mandel_times_y_mandel);
+--                        x_mandel_sq <= resize(x_mandel*x_mandel, x_mandel_sq);
+--                        y_mandel_sq <= resize(y_mandel*y_mandel, y_mandel_sq);
+--                        state <= comp_stage2;
+--                    end if;
+--
+--                when comp_stage2 =>
+--                    magnitude <= resize(x_mandel_sq + y_mandel_sq, magnitude);
+--                    x_mandel_times_y_mandel <= x_mandel_times_y_mandel sll 1;
+--                    state <= comp_stage3;
+--
+--                when comp_stage3 =>
+--                    if to_slv(magnitude)(31 downto 29) /= "000" then
+--                        state <= computed;
+--                    else
+--                        state <= comp_stage4;
+--                    end if;
+--
+--                when comp_stage4 =>
+--                    pixel_color <= pixel_color + 1;
+--                    x_mandel <= resize(x_mandel_sq - y_mandel_sq + input_x_sfixed, x_mandel);
+--                    y_mandel <= resize(x_mandel_times_y_mandel + input_y_sfixed, y_mandel);
+--                    debug1 <= to_slv(x_mandel);
+--                    debug2 <= to_slv(y_mandel);
+--                    state <= comp_stage1;
+--
+--                when computed =>
+--                   OutputNumber <= std_logic_vector(pixel_color);
+--                   state <= receiving_input;
             end case; -- case state is ...
             
         end if; -- if CLK'event and CLK = '1' ...
     end process;
 
-    process (Addr, debug1, debug2, OutputNumber)
+    process (Addr, debug1, debug2, OutputNumber, TestByteRead)
     begin
         case Addr is
             when X"207C" => DataOut <= OutputNumber(7 downto 0);
+            when X"207D" => DataOut <= TestByteRead(7 downto 0);
+            when X"207E" => DataOut <= x"DE";
+
             when X"2000" => DataOut <= debug1(7 downto 0);
             when X"2001" => DataOut <= debug1(15 downto 8);
             when X"2002" => DataOut <= debug1(23 downto 16);
@@ -397,12 +463,12 @@ begin
             User_Interrupt => Interrupt,
 
             -- SRAM interface
-            User_SRAM_A => "00000000000000000000000",
-            User_SRAM_W => '0',
-            User_SRAM_R => '0',
-            User_SRAM_DR_VALID => open,
-            User_SRAM_DW => "000000000000000000",
-            User_SRAM_DR => open
+            User_SRAM_A => SRAMAddr,
+            User_SRAM_W => SRAMWE,
+            User_SRAM_R => SRAMRE,
+            User_SRAM_DR_VALID => SRAMValid,
+            User_SRAM_DW => SRAMDataOut,
+            User_SRAM_DR => SRAMDataIn
         );
 
 end arch;

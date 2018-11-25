@@ -10,7 +10,10 @@ all: ${TARGET} ${BITFILE}
 clean:
 	rm ${TARGET}
 	rm ${OBJS}
-	
+
+%.o:	%.cc
+	${CC} -c -o $@ ${CXXFLAGS} $^
+
 ${TARGET}: ${OBJS} ../../Lib/libZestSC1.a
 	${CC} ${LDFLAGS} -o $@ $^ ${LIBS} -lstdc++
 
@@ -28,3 +31,7 @@ test:	${BITFILE} ${TARGET}
 	@sudo ${TARGET}
 	@echo
 	@sudo ${TARGET} fractal
+
+picture:	CreateImage
+	@sudo ./$<
+	@feh mandel.pgm

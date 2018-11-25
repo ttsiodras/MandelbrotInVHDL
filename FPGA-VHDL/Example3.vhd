@@ -143,7 +143,6 @@ architecture arch of Example3 is
     signal SRAMRE : std_logic;
     signal SRAMValid : std_logic;
 
-    signal TestByteWrite : std_logic_vector(17 downto 0);
     signal TestByteRead : std_logic_vector(17 downto 0);
 
     -- Interrupt signal
@@ -219,6 +218,7 @@ begin
             -- Was the WE signal just raised?
             if (WE='1' and WE_old = '0') then
                 case Addr is
+
                     when X"207B" => 
                         debug2 <= X"00000000";
                         input_x <= input_x(23 downto 0) & DataIn;
@@ -229,6 +229,7 @@ begin
                             input_x_given <= '0';
                             bits_sent_so_far_for_X <= bits_sent_so_far_for_X + 1;
                         end if;
+
                     when X"207C" => 
                         debug2 <= X"00000000";
                         input_y <= input_y(23 downto 0) & DataIn;
@@ -239,29 +240,24 @@ begin
                             input_y_given <= '0';
                             bits_sent_so_far_for_Y <= bits_sent_so_far_for_Y + 1;
                         end if;
+                        
                     when X"207D" =>
-                        debug2 <= X"00000000";
-                        TestByteWrite <= "0000000000" & DataIn;
+                        SRAMDataOut <= "0000000000" & DataIn;
                         SRAMAddr <= (others => '0');
                         SRAMWE <= '0';
-                        SRAMRE <= '0';
                         startWriting <= '1';
 
                     when X"207E" =>
-                        debug2 <= X"00000000";
-                        SRAMWE <= '0';
                         SRAMRE <= '1';
                         startReading <= '1';
 
                     when others =>
-                        debug2 <= X"00000000";
                 end case;
             end if; -- WE='1'
 
             case state is
                 when write =>
                     SRAMWE <= '1';
-                    debug2 <= X"0DEADBEE";
                     state <= idle;
 
                 when idle =>
@@ -269,11 +265,9 @@ begin
                     state <= receiving_input;
 
                 when read =>
-                    SRAMRE <= '0';
                     if SRAMValid = '1' then
                         TestByteRead <= SRAMDataIn;
-                        debug1 <= X"DEADBEEF";
-                        state <= idle;
+                        state <= receiving_input;
                     else
                         state <= read;
                     end if;
@@ -281,10 +275,10 @@ begin
                 when receiving_input =>
                     if startReading = '1' then
                         startReading <= '0';
+                        SRAMRE <= '0';
                         state <= read;
                     elsif startWriting = '1' then
                         startWriting <= '0';
-                        SRAMDataOut <= TestByteWrite;
                         state <= write;
                     elsif input_x_given = '1' and input_y_given = '1' then
                         input_x_sfixed <= to_sfixed_custom(input_x);

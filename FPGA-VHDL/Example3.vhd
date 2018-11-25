@@ -2,11 +2,6 @@ library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.NUMERIC_STD.ALL;
 
-library ieee_proposed;
-use ieee_proposed.fixed_pkg.to_sfixed_custom;
-
-use work.custom_fixed_point_types.all;
-
 --  Uncomment the following lines to use the declarations that are
 --  provided for instantiating Xilinx primitive components.
 --library UNISIM;
@@ -171,11 +166,6 @@ architecture arch of Example3 is
     signal WE_old : std_logic;
 
     -- Inner logic
-    signal input_x_sfixed, input_y_sfixed : custom_fixed_point_type;
-    signal x_mandel, y_mandel : custom_fixed_point_type;
-    signal x_mandel_sq, y_mandel_sq, x_mandel_times_y_mandel, magnitude : custom_fixed_point_type;
-    signal output_xy_sfixed : custom_fixed_point_type;
-    constant borderValue : custom_fixed_point_type := to_sfixed_custom(4.0);
     signal debug1 : std_logic_vector(31 downto 0);
     signal debug2 : std_logic_vector(31 downto 0);
 

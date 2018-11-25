@@ -55,8 +55,8 @@ begin
 
             case state is
                 when receiving_input =>
+                    finishedWorking <= '0';
                     if startWorking = '1' then
-                        finishedWorking <= '0';
                         input_x_sfixed <= to_sfixed_custom(input_x);
                         input_y_sfixed <= to_sfixed_custom(input_y);
                         x_mandel <= to_sfixed_custom(0.0);

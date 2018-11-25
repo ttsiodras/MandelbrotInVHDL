@@ -255,7 +255,6 @@ begin
                     end if;
 
                 when waitForMandelbrot =>
-                    startMandelEngine <= '0'; -- finish pulse
                     if mandelEngineFinished = '0' then
                         state <= waitForMandelbrot;
                     else

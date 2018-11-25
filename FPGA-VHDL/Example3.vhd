@@ -55,7 +55,18 @@ end Example3;
 
 architecture arch of Example3 is
 
-    -- Declare interfaces component
+    -- Declare components
+    component Mandelbrot
+        port (
+            CLK              : in std_logic;
+            RST              : in std_logic;
+            input_x, input_y : in std_logic_vector(31 downto 0);
+            startWorking     : in std_logic;
+            OutputNumber     : out std_logic_vector(7 downto 0);
+            finishedWorking  : out std_logic
+        );
+    end component;
+
     component ZestSC1_Interfaces
         port (
             -- FPGA pin connections
@@ -143,27 +154,16 @@ architecture arch of Example3 is
     signal SRAMRE : std_logic;
     signal SRAMValid : std_logic;
 
-    signal TestByteRead : std_logic_vector(17 downto 0);
-
     -- Interrupt signal
     signal Interrupt : std_logic;
 
-    -- Registers
-    signal input_x, input_y : std_logic_vector(31 downto 0);
-    signal input_x_given, input_y_given : std_logic;
-    signal OutputNumber : std_logic_vector(7 downto 0);
- 
     -- My types
     type state_type is (
         write,
         idle,
         read,
         receiving_input,
-        comp_stage1,
-        comp_stage2,
-        comp_stage3,
-        comp_stage4,
-        computed
+        waitForMandelbrot
     );
     signal state : state_type;
 
@@ -183,6 +183,14 @@ architecture arch of Example3 is
 
     signal startReading : std_logic := '0';
     signal startWriting : std_logic := '0';
+    signal input_x_given, input_y_given : std_logic;
+    signal TestByteRead : std_logic_vector(17 downto 0);
+
+    -- Signals used to interface with Mandelbrot engine
+    signal input_x, input_y : std_logic_vector(31 downto 0);
+    signal startWorking     : std_logic;
+    signal OutputNumber     : std_logic_vector(7 downto 0);
+    signal finishedWorking  : std_logic;
 begin
 
     -- Tie unused signals
@@ -195,7 +203,6 @@ begin
     IO <= (0=>LEDs(0), 1=>LEDs(1), 41=>LEDs(2), 42=>LEDs(3), 43=>LEDs(4),
            44=>LEDs(5), 45=>LEDs(6), 46=>LEDs(7), others => 'Z');
 
-
     process (RST, CLK)
     begin
         if (RST='1') then
@@ -205,7 +212,6 @@ begin
             input_y <= X"00000000";
             input_x_given <= '0';
             input_y_given <= '0';
-            OutputNumber <= X"00";
             state <= receiving_input;
             WE_old <= '0';
             SRAMDataOut <= (others => '0');
@@ -240,7 +246,7 @@ begin
                             input_y_given <= '0';
                             bits_sent_so_far_for_Y <= bits_sent_so_far_for_Y + 1;
                         end if;
-                        
+
                     when X"207D" =>
                         SRAMDataOut <= "0000000000" & DataIn;
                         SRAMAddr <= (others => '0');
@@ -281,51 +287,21 @@ begin
                         startWriting <= '0';
                         state <= write;
                     elsif input_x_given = '1' and input_y_given = '1' then
-                        input_x_sfixed <= to_sfixed_custom(input_x);
-                        input_y_sfixed <= to_sfixed_custom(input_y);
-                        x_mandel <= to_sfixed_custom(0.0);
-                        y_mandel <= to_sfixed_custom(0.0);
-                        pixel_color <= X"00";
+                        startWorking <= '1';
                         input_x_given <= '0';
                         input_y_given <= '0';
-                        state <= comp_stage1;
+                        debug1 <= X"00000000";
+                        state <= waitForMandelbrot;
                     end if;
-                
-                when comp_stage1 =>
-                    if pixel_color(7) /= '0' then
-                        state <= computed;
+
+                when waitForMandelbrot =>
+                    if finishedWorking = '0' then
+                        state <= waitForMandelbrot;
                     else
-                        x_mandel_times_y_mandel <= resize(x_mandel*y_mandel, x_mandel_times_y_mandel);
-                        x_mandel_sq <= resize(x_mandel*x_mandel, x_mandel_sq);
-                        y_mandel_sq <= resize(y_mandel*y_mandel, y_mandel_sq);
-                        state <= comp_stage2;
+                        debug1 <= X"DEADBEEF";
+                        state <= receiving_input;
                     end if;
-
-                when comp_stage2 =>
-                    magnitude <= resize(x_mandel_sq + y_mandel_sq, magnitude);
-                    x_mandel_times_y_mandel <= x_mandel_times_y_mandel sll 1;
-                    state <= comp_stage3;
-
-                when comp_stage3 =>
-                    if to_slv(magnitude)(31 downto 29) /= "000" then
-                        state <= computed;
-                    else
-                        state <= comp_stage4;
-                    end if;
-
-                when comp_stage4 =>
-                    pixel_color <= pixel_color + 1;
-                    x_mandel <= resize(x_mandel_sq - y_mandel_sq + input_x_sfixed, x_mandel);
-                    y_mandel <= resize(x_mandel_times_y_mandel + input_y_sfixed, y_mandel);
-                    debug1 <= to_slv(x_mandel);
-                    debug2 <= to_slv(y_mandel);
-                    state <= comp_stage1;
-
-                when computed =>
-                   OutputNumber <= std_logic_vector(pixel_color);
-                   state <= receiving_input;
             end case; -- case state is ...
-            
         end if; -- if rising_edge(CLK) ...
     end process;
 
@@ -350,7 +326,19 @@ begin
         end case;
     end process;
 
-    -- Instantiate interfaces component
+    -- Instantiate components
+
+    FractalEngine : Mandelbrot
+        port map (
+            CLK => CLK,
+            RST => RST,
+            input_x => input_x,
+            input_y => input_y,
+            startWorking => startWorking,
+            OutputNumber => OutputNumber,
+            finishedWorking => finishedWorking
+        );
+
     Interfaces : ZestSC1_Interfaces
         port map (
             USB_StreamCLK => USB_StreamCLK,
@@ -383,17 +371,12 @@ begin
             S_OE_N => S_OE_N,
             S_WE_N => S_WE_N,
 
-            -- User connections
-            -- Streaming interface
             User_CLK => CLK,
             User_RST => RST,
-
             User_StreamBusGrantLength => X"002",
-
             User_StreamDataIn => open,
             User_StreamDataInWE => open,
             User_StreamDataInBusy => '1',
-
             User_StreamDataOut => "0000000000000000", 
             User_StreamDataOutWE => '0',
             User_StreamDataOutBusy => open,

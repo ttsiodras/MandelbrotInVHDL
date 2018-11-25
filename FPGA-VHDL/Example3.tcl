@@ -238,6 +238,7 @@ proc add_source_files {} {
    xfile add "../ieee_proposed/fixed_float_types_c.vhd"
    xfile add "../ieee_proposed/fixed_pkg_c.vhd"
    xfile add "Example3.vhd"
+   xfile add "Mandelbrot.vhd"
    xfile add "MyTypes.vhd"
    xfile add "testFinallyWorks.vhd"
 
@@ -266,8 +267,8 @@ proc create_libraries {} {
    puts "$myScript: Creating libraries..."
 
    lib_vhdl new "ieee_proposed"
-      lib_vhdl add_file "ieee_proposed" "/home/ttsiod/Xilinx/KB/ZestSC1/Examples/MyMandelbrotInVHDL/ieee_proposed/fixed_pkg_c.vhd"
       lib_vhdl add_file "ieee_proposed" "/home/ttsiod/Xilinx/KB/ZestSC1/Examples/MyMandelbrotInVHDL/ieee_proposed/fixed_float_types_c.vhd"
+      lib_vhdl add_file "ieee_proposed" "/home/ttsiod/Xilinx/KB/ZestSC1/Examples/MyMandelbrotInVHDL/ieee_proposed/fixed_pkg_c.vhd"
 
    # must close the project or library definitions aren't saved.
    project save
@@ -295,7 +296,7 @@ proc set_process_props {} {
    project set "DCI Update Mode" "As Required" -process "Generate Programming File"
    project set "Configuration Rate" "Default (6)" -process "Generate Programming File"
    project set "Number of Clock Buffers" "8" -process "Synthesize - XST"
-   project set "Max Fanout" "10000" -process "Synthesize - XST"
+   project set "Max Fanout" "100000" -process "Synthesize - XST"
    project set "Regenerate Core" "Under Current Project Setting" -process "Regenerate Core"
    project set "Filter Files From Compile Order" "true"
    project set "Last Applied Goal" "Balanced"

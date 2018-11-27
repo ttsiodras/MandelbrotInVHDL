@@ -171,6 +171,7 @@ architecture arch of Example3 is
     signal debug2 : std_logic_vector(31 downto 0);
 
     signal startReading : std_logic := '0';
+    signal stopReading : std_logic := '0';
     signal startComputing : std_logic := '0';
     signal TestByteRead : std_logic_vector(17 downto 0);
 
@@ -231,6 +232,9 @@ begin
                         startReading <= '1';
                         SRAMAddr <= "000000000000000" & DataIn;
 
+                    when X"207F" =>
+                        stopReading <= '1';
+
                     when others =>
                 end case;
             end if; -- WE='1'
@@ -278,6 +282,9 @@ begin
                         startReading <= '0';
                         SRAMRE <= '1';
                         state <= reading1stCycle;
+                    elsif stopReading = '1' then
+                        stopReading <= '0';
+                        state <= receiving_input;
                     else
                         state <= doneComputingWaitForReading;
                     end if;

@@ -91,7 +91,7 @@ int main(int argc, char **argv)
 
     // Helper functions
     auto SendParam = [](double input, unsigned offset, bool debugPrint=false) {
-        unsigned inputFixed = (unsigned)(input*SCALE_FACTOR);
+        int inputFixed = (int)(input*SCALE_FACTOR);
         if (debugPrint)
             printf("0x%04x: %08x\n", offset, inputFixed);
         ZestSC1WriteRegister(Handle, offset,   (inputFixed>>0)  & 0xFF);
@@ -131,27 +131,32 @@ int main(int argc, char **argv)
     // double inputX = 0.4399999999999995;
     // double inputY = 0.24999999999999978; // => 16
 
-    GetResult(4, 4, true);
-    SendParam(inputX, 0x2060);
-    GetResult(4, 4, true);
-    SendParam(inputY, 0x2064);
-    GetResult(4, 4, true);
+    for (int j=0; j<2; j++) {
 
-    puts("[-] Waiting for pixel line to be computed...");
-    unsigned output = 1;
-    do {
-        output = GetResult(4, 4, true);
-    } while(output != 0x99999999);
+        GetResult(4, 4, true);
+        SendParam(inputX, 0x2060, true);
+        GetResult(4, 4, true);
+        SendParam(inputY, 0x2064, true);
+        GetResult(4, 4, true);
 
-    output = GetResult(0, 4, false);
-    cout << "input_x: " << to_double(output) << "\n\n";
+        puts("[-] Waiting for pixel line to be computed...");
+        unsigned output = 1;
+        do {
+            output = GetResult(4, 4, true);
+        } while(output != 0x99999999);
 
-    auto debug1 = [&GetResult]() { printf("debug1: 0x%08x\n", GetResult(0, 4)); };
-    auto debug2 = [&GetResult]() { printf("debug2: 0x%08x\n", GetResult(4, 4)); };
+        output = GetResult(0, 4, false);
+        cout << "input_x: " << to_double(output) << "\n\n";
 
-    for(int i=0; i<64; i++) {
-        Write(0x207E, (unsigned char)i);
-        printf("At SRAM[%d]: %04x\n", i, GetResult(0x10, 4));
+        auto debug1 = [&GetResult]() { printf("debug1: 0x%08x\n", GetResult(0, 4)); };
+        auto debug2 = [&GetResult]() { printf("debug2: 0x%08x\n", GetResult(4, 4)); };
+
+        for(int i=0; i<7; i++) {
+            Write(0x207E, (unsigned char)i);
+            printf("At SRAM[%d]: %04x\n", i, GetResult(0x10, 4));
+        }
+        Write(0x207F, 1);
+        inputX += 0.0001;
     }
 
     //

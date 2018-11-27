@@ -91,7 +91,7 @@ int main(int argc, char **argv)
 
     // Helper functions
     auto SendParam = [](double input, unsigned offset, bool debugPrint=false) {
-        unsigned inputFixed = (unsigned)(input*SCALE_FACTOR);
+        int inputFixed = (int)(input*SCALE_FACTOR);
         if (debugPrint)
             printf("0x%04x: %08x\n", offset, inputFixed);
         ZestSC1WriteRegister(Handle, offset,   (inputFixed>>0)  & 0xFF);
@@ -166,6 +166,7 @@ int main(int argc, char **argv)
             fprintf(fp, "%c", color&0xff);
             //debug2();
         }
+        ZestSC1WriteRegister(Handle, 0x207F, 1);
 
         printf("\b\b\b\b\b\b\b%03d/240", y); fflush(stdout);
     }

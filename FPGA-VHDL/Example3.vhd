@@ -154,6 +154,7 @@ architecture arch of Example3 is
     -- My types
     type state_type is (
         receiving_input,
+        drawRows,
         drawPixels,
         drawPixelsWaitForWrite,
         waitForMandelbrot,
@@ -175,14 +176,16 @@ architecture arch of Example3 is
     signal startComputing : std_logic := '0';
     signal TestByteRead : std_logic_vector(17 downto 0);
 
+    signal RowsToCompute : natural range 0 to 1023;
     signal PixelsToCompute : natural range 0 to 1023;
     signal PixelAddrInSRAM : unsigned(22 downto 0);
 
     -- Signals used to interface with Mandelbrot engine
-    signal input_x, input_y  : std_logic_vector(31 downto 0);
-    signal startMandelEngine : std_logic;
-    signal OutputNumber      : std_logic_vector(7 downto 0);
-    signal mandelEngineFinished   : std_logic;
+    signal input_x, input_y     : std_logic_vector(31 downto 0);
+    signal input_x_orig         : std_logic_vector(31 downto 0);
+    signal startMandelEngine    : std_logic;
+    signal OutputNumber         : std_logic_vector(7 downto 0);
+    signal mandelEngineFinished : std_logic;
 begin
 
     -- Tie unused signals
@@ -230,15 +233,19 @@ begin
                     when X"2066" => input_y(23 downto 16) <= DataIn;
                     when X"2067" => input_y(31 downto 24) <= DataIn;
                                     debug2 <= X"55555555";
-                                    PixelsToCompute <= 320;
+                                    RowsToCompute <= 240;
                                     PixelAddrInSRAM <= (others => '0');
                                     startComputing <= '1';
 
-                    when X"207E" =>
+                    when X"2080" =>
                         startReading <= '1';
-                        SRAMAddr <= "000000000000000" & DataIn;
+                        SRAMAddr <= (others => '0');
 
-                    when X"207F" =>
+                    when X"2081" =>
+                        startReading <= '1';
+                        SRAMAddr <= std_logic_vector(unsigned(SRAMAddr) + 1);
+
+                    when X"2082" =>
                         stopReading <= '1';
 
                     when others =>
@@ -248,18 +255,31 @@ begin
             case state is
                 when receiving_input =>
                     if startComputing = '1' then
+                        input_x_orig <= input_x;
+                        state <= drawRows;
+                    end if;
+
+                when drawRows =>
+                    if RowsToCompute /= 0 then
+                        RowsToCompute <= RowsToCompute - 1;
+                        debug2 <= std_logic_vector(to_unsigned(RowsToCompute, debug2'length));
+                        PixelsToCompute <= 320;
                         state <= drawPixels;
+                    else
+                        state <= doneComputingWaitForReading;
                     end if;
 
                 when drawPixels =>
-                    debug2 <= X"77777777";
                     if PixelsToCompute /= 0 then
                         PixelsToCompute <= PixelsToCompute - 1;
                         debug1 <= std_logic_vector(to_unsigned(PixelsToCompute, debug1'length));
                         startMandelEngine <= '1';
                         state <= waitForMandelbrot;
                     else
-                        state <= doneComputingWaitForReading;
+                        input_x <= input_x_orig;
+                        -- Go down by 2.2/240
+                        input_y <= std_logic_vector(unsigned(input_y) - 1230329);
+                        state <= drawRows;
                     end if;
 
                 when waitForMandelbrot =>
@@ -281,7 +301,6 @@ begin
 
                 when doneComputingWaitForReading =>
                     debug2 <= X"99999999";
-                    debug1 <= input_x;
                     if startReading = '1' then
                         SRAMRE <= '1';
                         state <= reading1stCycle;

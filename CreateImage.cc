@@ -132,44 +132,49 @@ int main(int argc, char **argv)
     // double inputY = 0.24999999999999978; // => 16
 
     FILE *fp = fopen("mandel.pgm", "w");
-    fprintf(fp, "P5\n256 240\n255\n");
+    fprintf(fp, "P5\n320 240\n255\n");
 
-    for(int y=0; y<240; y++) {
-        double inputX = -2.2;
-        double inputY = 1.1 - 2.2*double(y)/240.;
+    double inputX = -2.2;
+    double inputY = 1.1;
 
-        //GetResult(4, 4, true);
-        SendParam(inputX, 0x2060);
-        //GetResult(4, 4, true);
-        SendParam(inputY, 0x2064);
-        //GetResult(4, 4, true);
+    //GetResult(4, 4, true);
+    SendParam(inputX, 0x2060);
+    //GetResult(4, 4, true);
+    SendParam(inputY, 0x2064);
+    //GetResult(4, 4, true);
 
-        // puts("[-] Waiting for pixel line to be computed...");
-        unsigned output = 1;
-        do {
-            //output = GetResult(4, 4, true);
-            output = GetResult(4, 4);
-        } while(output != 0x99999999);
-
-        // output = GetResult(0, 4, false);
-        // cout << "input_x: " << to_double(output) << "\n\n";
-
-        // auto debug1 = [&GetResult]() { printf("debug1: 0x%08x\n", GetResult(0, 4)); };
-        // auto debug2 = [&GetResult]() { printf("debug2: 0x%08x\n", GetResult(4, 4)); };
-
-        for(int i=0; i<256; i++) {
-            //debug2();
-            Write(0x207E, (unsigned char)i);
-            //debug2();
-            //printf("At SRAM[%d]: %04x\n", i, GetResult(0x10, 4));
-            unsigned color = Read(0x2010);
-            fprintf(fp, "%c", color&0xff);
-            //debug2();
+    // puts("[-] Waiting for pixel line to be computed...");
+    unsigned output = 1, oldOutput = 0xFFFFFFFF;
+    while(1) {
+        output = GetResult(4, 4);
+        if (output == 0x99999999)
+            break;
+        if (oldOutput > output) {
+            oldOutput = output;
+            //printf("\b\b\b\b\b\b\b%03d/240", output);
+            printf("%d\n", output);
+            fflush(stdout);
         }
-        ZestSC1WriteRegister(Handle, 0x207F, 1);
-
-        printf("\b\b\b\b\b\b\b%03d/240", y); fflush(stdout);
     }
+
+    // output = GetResult(0, 4, false);
+    // cout << "input_x: " << to_double(output) << "\n\n";
+
+    // auto debug1 = [&GetResult]() { printf("debug1: 0x%08x\n", GetResult(0, 4)); };
+    // auto debug2 = [&GetResult]() { printf("debug2: 0x%08x\n", GetResult(4, 4)); };
+
+    Write(0x2080, 1);
+    for(int i=0; i<320*240; i++) {
+        //debug2();
+        //debug2();
+        //printf("At SRAM[%d]: %04x\n", i, GetResult(0x10, 4));
+        unsigned color = Read(0x2010);
+        fprintf(fp, "%c", color&0xff);
+        //debug2();
+        Write(0x2081, 1);
+    }
+    Write(0x2082, 1);
+
     fclose(fp);
 
     //

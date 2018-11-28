@@ -208,6 +208,12 @@ begin
 
         elsif rising_edge(CLK) then
             WE_old <= WE;
+            SRAMWE <= '0';
+            SRAMRE <= '0';
+            startComputing <= '0';
+            startMandelEngine <= '0';
+            startReading <= '0';
+            stopReading <= '0';
 
             -- Was the WE signal just raised?
             if (WE='1' and WE_old = '0') then
@@ -242,12 +248,10 @@ begin
             case state is
                 when receiving_input =>
                     if startComputing = '1' then
-                        startComputing <= '0';
                         state <= drawPixels;
                     end if;
 
                 when drawPixels =>
-                    SRAMWE <= '0';
                     debug2 <= X"77777777";
                     if PixelsToCompute /= 0 then
                         PixelsToCompute <= PixelsToCompute - 1;
@@ -279,18 +283,15 @@ begin
                     debug2 <= X"99999999";
                     debug1 <= input_x;
                     if startReading = '1' then
-                        startReading <= '0';
                         SRAMRE <= '1';
                         state <= reading1stCycle;
                     elsif stopReading = '1' then
-                        stopReading <= '0';
                         state <= receiving_input;
                     else
                         state <= doneComputingWaitForReading;
                     end if;
 
                 when reading1stCycle =>
-                    SRAMRE <= '0';
                     state <= reading2ndCycle;
 
                 when reading2ndCycle =>

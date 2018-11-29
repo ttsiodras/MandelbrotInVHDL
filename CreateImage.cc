@@ -91,8 +91,8 @@ int main(int argc, char **argv)
 
     struct timeval Start;
     unsigned output = 1, oldOutput = 0xFFFFFFFF;
+    printf("[-] Remaining scanlines:         ");
     gettimeofday(&Start, NULL);
-    printf("[-] Computing scanline:         ");
     while(1) {
         output = ReadNBytes(0x2004, 4);
         if (output == 0x99999999)
@@ -105,6 +105,7 @@ int main(int argc, char **argv)
     }
     struct timeval End;
     gettimeofday(&End, NULL);
+    printf("\b\b\b\b\b\b\b%03d/240", 0);
 
     auto timeTakenInMS = [&Start, &End]() {
         unsigned long long uSecStart =
@@ -125,7 +126,10 @@ int main(int argc, char **argv)
     puts("[-] Dumping frame over USB...");
     void *Buffer = malloc(320*240);
     WriteU8(0x2080, 1);
+    gettimeofday(&Start, NULL);
     ZestSC1ReadData(Handle, Buffer, 320*240);
+    gettimeofday(&End, NULL);
+    printf("[-] Frame sent over USB (took %lld ms)\n", timeTakenInMS());
     fwrite(Buffer, 1, 320*240, fp);
     fclose(fp);
     free(Buffer);

@@ -29,16 +29,7 @@ Target Device                       : 3s1000ft256-5
 *                        Optimizations                                  *
 =========================================================================
 ---- Statistics
-   Number of registers added by Replication                  | 1               
-
-   Overall change in number of design objects                | +1               
-
-
----- Details
-
-New or modified components                             | Optimization             | Objective           
--------------------------------------------------------|--------------------------|----------------------
-Interfaces/INST_ZestSC1_Host/RegFIFOInReadCountG_3_REPLICA_0| Replication              | Fanout Optimization
+No sequential optimizations have been performed.
 
    Flops added for Enable Generation                       
 -------------------------

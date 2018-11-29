@@ -171,6 +171,8 @@ architecture arch of Example3 is
         waitForDMAtoPC,
         DMAing,
         DMAwaitingSRAM,
+        DMAwaitingSRAM2,
+        DMAwaitingSRAM3,
         DMAwaitingForUSB,
         DMAwaitingForUSB2
     );
@@ -202,6 +204,8 @@ architecture arch of Example3 is
     -- Debugging USB transfers
     signal Ramp : unsigned(15 downto 0);
     signal RampError : std_logic;
+
+    signal USB_DataOutStaging : std_logic_vector(7 downto 0);
 begin
 
     -- Tie unused signals
@@ -317,7 +321,6 @@ begin
 
                 when waitForDMAtoPC =>
                     debug2 <= X"99999999";
-                    debug1 <= "000000000" & SRAMAddr;
                     if ReadingActive = '1' then
                         state <= DMAing;
                     else
@@ -326,25 +329,36 @@ begin
 
                 when DMAing =>
                     debug2 <= std_logic_vector(to_unsigned(ReadCount, debug2'length));
-                    debug1 <= "000000000" & SRAMAddr;
                     if ReadCount /= 0 then
-                        -- SRAMRE <= '1';
+                        SRAMRE <= '1';
                         state <= DMAwaitingSRAM;
                     else
                         state <= receiving_input;
                     end if;
 
                 when DMAwaitingSRAM =>
-                    -- if SRAMValid = '1' then
-                    --     USB_DataOut <= "00000000" & SRAMDataIn(7 downto 0);
-                    --     ReadCount <= ReadCount - 1;
-                    --     state <= DMAwaitingForUSB;
-                    -- else
-                    --     state <= DMAwaitingSRAM;
-                    -- end if;
-                    USB_DataOut <= "00000000" & "01101100";
-                    ReadCount <= ReadCount - 1;
-                    state <= DMAwaitingForUSB;
+                    if SRAMValid = '1' then
+                        USB_DataOutStaging <= SRAMDataIn(7 downto 0);
+                        ReadCount <= ReadCount - 1;
+                        SRAMAddr <= std_logic_vector(unsigned(SRAMAddr) + 1);
+                        state <= DMAwaitingSRAM2;
+                    else
+                        state <= DMAwaitingSRAM;
+                    end if;
+
+                when DMAwaitingSRAM2 =>
+                    SRAMRE <= '1';
+                    state <= DMAwaitingSRAM3;
+
+                when DMAwaitingSRAM3 =>
+                    if SRAMValid = '1' then
+                        USB_DataOut <= SRAMDataIn(7 downto 0) & USB_DataOutStaging;
+                        ReadCount <= ReadCount - 1;
+                        SRAMAddr <= std_logic_vector(unsigned(SRAMAddr) + 1);
+                        state <= DMAwaitingForUSB;
+                    else
+                        state <= DMAwaitingSRAM2;
+                    end if;
 
                 when DMAwaitingForUSB =>
                     if USB_DataOutBusy = '1' then
@@ -358,7 +372,6 @@ begin
                         state <= DMAwaitingForUSB;
                     else
                         USB_DataOutWE <= '1';
-                        SRAMAddr <= std_logic_vector(unsigned(SRAMAddr) + 1);
                         state <= DMAing;
                     end if;
 

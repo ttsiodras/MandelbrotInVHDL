@@ -1,11 +1,13 @@
 TARGET = ../example3
 LDFLAGS = -L../../Lib
-LIBS = -lusb -lZestSC1
+# LIBS = -lusb -lZestSC1
+LIBS = -m32 -L ../../linux/Lib/ -lZestSC1 /usr/lib32/libusb-0.1.so.4.4.4
 OBJS = Example3.o
-CXXFLAGS = -g -O2 -I../../Inc -std=c++17
+CXXFLAGS = -g -O2 -I../../Inc -std=c++17 -m32
 BITFILE := FPGA-VHDL/Example3.bit
 
-all: ${TARGET} ${BITFILE}
+# all: ${TARGET} ${BITFILE}
+all: CreateImage ${BITFILE}
 
 clean:
 	rm ${TARGET}

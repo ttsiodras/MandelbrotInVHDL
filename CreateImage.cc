@@ -89,13 +89,13 @@ int main(int argc, char **argv)
     ZestSC1ConfigureFromFile(Handle, (char *)"FPGA-VHDL/Example3.bit");
     //ZestSC1SetSignalDirection(Handle, 0xf);
 
-#define TRANSFER_LENGTH (1024*1024)
-    unsigned short *Buffer = (unsigned short *)malloc(TRANSFER_LENGTH);
-    for (Count=0; Count<TRANSFER_LENGTH/2; Count++)
-        Buffer[Count] = (unsigned short)(Count&0xffff);
-    ZestSC1WriteData(Handle, Buffer, TRANSFER_LENGTH);
-    puts("All good.");
-    exit(0);
+    //#define TRANSFER_LENGTH (1024*1024)
+    //unsigned short *Buffer = (unsigned short *)malloc(TRANSFER_LENGTH);
+    //for (Count=0; Count<TRANSFER_LENGTH/2; Count++)
+    //    Buffer[Count] = (unsigned short)(Count&0xffff);
+    //ZestSC1WriteData(Handle, Buffer, TRANSFER_LENGTH);
+    //puts("All good.");
+    //exit(0);
 
     // Helper functions
     auto SendParam = [](double input, unsigned offset, bool debugPrint=false) {
@@ -175,7 +175,7 @@ int main(int argc, char **argv)
 
     debug2();
     debug1();
-    void *Buffer2 = malloc(320*240);
+    void *Buffer = malloc(320*240);
     Write(0x2080, 1);
     debug2();
     debug1();
@@ -186,7 +186,7 @@ int main(int argc, char **argv)
     // debug2();
     // debug1();
     // debug2();
-    ZestSC1ReadData(Handle, Buffer2, 320*240);
+    ZestSC1ReadData(Handle, Buffer, 320*240);
     fwrite(Buffer, 1, 320*240, fp);
     fclose(fp);
 

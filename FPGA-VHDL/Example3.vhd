@@ -149,6 +149,29 @@ architecture arch of Example3 is
     -- Interrupt signal
     signal Interrupt : std_logic;
 
+    -- Signals
+    signal WE_old : std_logic;
+
+    -- Inner logic
+    signal debug1 : std_logic_vector(31 downto 0);
+    signal debug2 : std_logic_vector(31 downto 0);
+
+    signal startComputing : std_logic := '0';
+    signal RowsToCompute : natural range 0 to 1023;
+    signal PixelsToCompute : natural range 0 to 1023;
+    signal PixelAddrInSRAM : unsigned(22 downto 0);
+
+    -- Data back to PC...
+    signal ReadCount : natural;
+    signal ReadingActive : std_logic := '0';
+
+    -- Signals used to interface with Mandelbrot engine
+    signal input_x, input_y     : std_logic_vector(31 downto 0);
+    signal input_x_orig         : std_logic_vector(31 downto 0);
+    signal startMandelEngine    : std_logic;
+    signal OutputNumber         : std_logic_vector(7 downto 0);
+    signal mandelEngineFinished : std_logic;
+
     -- Debugging USB transfers
     signal Ramp : unsigned(15 downto 0);
     signal RampError : std_logic;
@@ -160,7 +183,6 @@ begin
     IO_CLK_N <= 'Z';
     IO_CLK_P <= 'Z';
     Interrupt <= '0';
-    DataOut <= X"00";
 
     IO <= (0=>LEDs(0), 1=>LEDs(1), 41=>LEDs(2), 42=>LEDs(3), 43=>LEDs(4),
            44=>LEDs(5), 45=>LEDs(6), 46=>LEDs(7), others => 'Z');
@@ -168,16 +190,54 @@ begin
     process (RST, CLK)
     begin
         if (RST='1') then
+            input_x <= X"00000000";
+            input_y <= X"00000000";
+            WE_old <= '0';
             SRAMDataOut <= (others => '0');
+            debug1 <= (others => '0');
+            debug2 <= (others => '0');
+            ReadingActive <= '0';
             USB_DataOutWE <= '0';
             USB_DataOut <= (others => '0');
             USB_DataInBusy <= '0';
 
         elsif rising_edge(CLK) then
+            WE_old <= WE;
             SRAMWE <= '0';
             SRAMRE <= '0';
             USB_DataInBusy <= '0';
+            startComputing <= '0';
+            startMandelEngine <= '0';
+            ReadingActive <= '0';
             USB_DataOutWE <= '0';
+
+            -- Was the WE signal just raised?
+            if (WE='1' and WE_old = '0') then
+                case Addr is
+
+                    when X"2060" => input_x(7 downto 0) <= DataIn;
+                    when X"2061" => input_x(15 downto 8) <= DataIn;
+                    when X"2062" => input_x(23 downto 16) <= DataIn;
+                    when X"2063" => input_x(31 downto 24) <= DataIn;
+                                    debug2 <= X"AAAAAAAA";
+
+                    when X"2064" => input_y(7 downto 0) <= DataIn;
+                    when X"2065" => input_y(15 downto 8) <= DataIn;
+                    when X"2066" => input_y(23 downto 16) <= DataIn;
+                    when X"2067" => input_y(31 downto 24) <= DataIn;
+                                    debug2 <= X"55555555";
+                                    RowsToCompute <= 240;
+                                    PixelAddrInSRAM <= (others => '0');
+                                    startComputing <= '1';
+
+                    when X"2080" => ReadingActive <= '1';
+                                    ReadCount <= 320*240;
+                                    SRAMAddr <= (others => '0');
+
+                    when others =>
+                end case;
+
+            end if; -- WE='1'
 
         end if; -- if rising_edge(CLK) ...
     end process;

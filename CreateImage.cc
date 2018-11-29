@@ -80,59 +80,61 @@ int main(int argc, char **argv)
             printf("W:0x%04x: %02x\n", offset, (unsigned)data);
     };
 
-    FILE *fp = fopen("mandel.pgm", "w");
-    fprintf(fp, "P5\n320 240\n255\n");
+    for (int i=0; i<5; i++) {
+        FILE *fp = fopen("mandel.pgm", "w");
+        fprintf(fp, "P5\n320 240\n255\n");
 
-    double inputX = -2.2;
-    double inputY = 1.1;
+        double inputX = -2.2 + 0.3*i;
+        double inputY = 1.1;
 
-    WriteDouble(inputX, 0x2060);
-    WriteDouble(inputY, 0x2064);
+        WriteDouble(inputX, 0x2060);
+        WriteDouble(inputY, 0x2064);
 
-    struct timeval Start;
-    unsigned output = 1, oldOutput = 0xFFFFFFFF;
-    printf("[-] Remaining scanlines:         ");
-    gettimeofday(&Start, NULL);
-    while(1) {
-        output = ReadNBytes(0x2004, 4);
-        if (output == 0x99999999)
-            break;
-        if (oldOutput > output) {
-            oldOutput = output;
-            printf("\b\b\b\b\b\b\b%03d/240", output);
-            fflush(stdout);
+        struct timeval Start;
+        unsigned output = 1, oldOutput = 0xFFFFFFFF;
+        printf("[-] Remaining scanlines:         ");
+        gettimeofday(&Start, NULL);
+        while(1) {
+            output = ReadNBytes(0x2004, 4);
+            if (output == 0x99999999)
+                break;
+            if (oldOutput > output) {
+                oldOutput = output;
+                printf("\b\b\b\b\b\b\b%03d/240", output);
+                fflush(stdout);
+            }
         }
+        struct timeval End;
+        gettimeofday(&End, NULL);
+        printf("\b\b\b\b\b\b\b%03d/240", 0);
+
+        auto timeTakenInMS = [&Start, &End]() {
+            unsigned long long uSecStart =
+                (unsigned long long)Start.tv_sec*1000000ull +
+                (unsigned long long)Start.tv_usec;
+            unsigned long long uSecEnd =
+                (unsigned long long)End.tv_sec*1000000ull +
+                (unsigned long long)End.tv_usec;
+            return (uSecEnd - uSecStart)/1000;
+        };
+        printf("\n[-] Frame computed (took %lld ms)\n", timeTakenInMS());
+
+        // output = ReadNBytes(0x2000, 4, false);
+        // cout << "input_x: " << to_double(output) << "\n\n";
+        // auto debug1 = [&ReadNBytes]() { printf("debug1: 0x%08x\n", ReadNBytes(0x2000, 4)); };
+        // auto debug2 = [&ReadNBytes]() { printf("debug2: 0x%08x\n", ReadNBytes(0x2004, 4)); };
+
+        puts("[-] Dumping frame over USB...");
+        void *Buffer = malloc(320*240);
+        WriteU8(0x2080, 1);
+        gettimeofday(&Start, NULL);
+        ZestSC1ReadData(Handle, Buffer, 320*240);
+        gettimeofday(&End, NULL);
+        printf("[-] Frame sent over USB (took %lld ms)\n", timeTakenInMS());
+        fwrite(Buffer, 1, 320*240, fp);
+        fclose(fp);
+        free(Buffer);
     }
-    struct timeval End;
-    gettimeofday(&End, NULL);
-    printf("\b\b\b\b\b\b\b%03d/240", 0);
-
-    auto timeTakenInMS = [&Start, &End]() {
-        unsigned long long uSecStart =
-            (unsigned long long)Start.tv_sec*1000000ull +
-            (unsigned long long)Start.tv_usec;
-        unsigned long long uSecEnd =
-            (unsigned long long)End.tv_sec*1000000ull +
-            (unsigned long long)End.tv_usec;
-        return (uSecEnd - uSecStart)/1000;
-    };
-    printf("\n[-] Frame computed (took %lld ms)\n", timeTakenInMS());
-
-    // output = ReadNBytes(0x2000, 4, false);
-    // cout << "input_x: " << to_double(output) << "\n\n";
-    // auto debug1 = [&ReadNBytes]() { printf("debug1: 0x%08x\n", ReadNBytes(0x2000, 4)); };
-    // auto debug2 = [&ReadNBytes]() { printf("debug2: 0x%08x\n", ReadNBytes(0x2004, 4)); };
-
-    puts("[-] Dumping frame over USB...");
-    void *Buffer = malloc(320*240);
-    WriteU8(0x2080, 1);
-    gettimeofday(&Start, NULL);
-    ZestSC1ReadData(Handle, Buffer, 320*240);
-    gettimeofday(&End, NULL);
-    printf("[-] Frame sent over USB (took %lld ms)\n", timeTakenInMS());
-    fwrite(Buffer, 1, 320*240, fp);
-    fclose(fp);
-    free(Buffer);
 
     puts("[-] Releasing FPGA resources...");
     ZestSC1CloseCard(Handle);

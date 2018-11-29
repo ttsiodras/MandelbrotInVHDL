@@ -1,24 +1,9 @@
-//////////////////////////////////////////////////////////////////////
-//
-// File:      Example3.c
-//
-// Purpose:
-//    ZestSC1 Example Programs
-//    Low speed data transfer example
-//  
-// Copyright (c) 2004-2006 Orange Tree Technologies.
-// May not be reproduced without permission.
-//
-//////////////////////////////////////////////////////////////////////
-
-#include <iostream>
-#include <iomanip>
-
+#include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
+#include <sys/time.h>
 
 #include "ZestSC1.h"
-
-using std::cout, std::endl, std::setw;
 
 const unsigned FRACTIONAL_PART = 27;
 const double SCALE_FACTOR = ((double)(1<<FRACTIONAL_PART));
@@ -28,24 +13,14 @@ double to_double(int x)
     return ((double)x)/SCALE_FACTOR;
 }
 
-//
-// Error handler function
-//
-void ErrorHandler(const char *Function, 
-                  ZESTSC1_HANDLE Handle,
-                  ZESTSC1_STATUS Status,
-                  const char *Msg)
+void ErrorHandler(const char *Function, ZESTSC1_HANDLE Handle,
+                  ZESTSC1_STATUS Status, const char *Msg)
 {
-    printf("**** Example3 - Function %s returned an error\n        \"%s\"\n\n", Function, Msg);
+    printf(
+        "**** FPGAMandel - Function %s returned an error\n        \"%s\"\n\n",
+        Function, Msg);
     exit(1);
 }
-
-//
-// Main program
-//
-
-ZESTSC1_HANDLE Handle;
-unsigned char Result;
 
 int main(int argc, char **argv)
 {
@@ -54,51 +29,26 @@ int main(int argc, char **argv)
     unsigned long CardIDs[256];
     unsigned long SerialNumbers[256];
     ZESTSC1_FPGA_TYPE FPGATypes[256];
+    ZESTSC1_HANDLE Handle;
+    unsigned char Result;
 
-    //
-    // Install an error handler
-    //
     ZestSC1RegisterErrorHandler(ErrorHandler);
-
-    //
-    // Request information about the system
-    //
     ZestSC1CountCards(&NumCards, CardIDs, SerialNumbers, FPGATypes);
-    printf("[-] %d available cards in the system\n", NumCards);
-    if (NumCards==0)
-    {
-        printf("[*] No cards in the system\n");
+    printf("[-] %d available FPGA board detected\n", NumCards);
+    if (NumCards==0) {
+        printf("[*] No FPGA boards in the system\n");
         exit(1);
     }
-
-    for (Count=0; Count<NumCards; Count++)
-    {
-        printf("[-] Card %d : CardID = 0x%08lx, SerialNum = 0x%08lx, FPGAType = %d\n",
-            Count, CardIDs[Count], SerialNumbers[Count], FPGATypes[Count]);
+    for (Count=0; Count<NumCards; Count++) {
+        printf("[-] Card %d : CardID = 0x%08lx, SerialNum = 0x%08lx\n",
+            Count, CardIDs[Count], SerialNumbers[Count]);
     }
-
-    //
-    // Open the first card
-    // Then set 4 signals as outputs and 4 signals as inputs
-    //
     ZestSC1OpenCard(CardIDs[0], &Handle);
-
-    //
-    // Configure the FPGA
-    //
     ZestSC1ConfigureFromFile(Handle, (char *)"FPGA-VHDL/Example3.bit");
-    //ZestSC1SetSignalDirection(Handle, 0xf);
 
-    //#define TRANSFER_LENGTH (1024*1024)
-    //unsigned short *Buffer = (unsigned short *)malloc(TRANSFER_LENGTH);
-    //for (Count=0; Count<TRANSFER_LENGTH/2; Count++)
-    //    Buffer[Count] = (unsigned short)(Count&0xffff);
-    //ZestSC1WriteData(Handle, Buffer, TRANSFER_LENGTH);
-    //puts("All good.");
-    //exit(0);
-
-    // Helper functions
-    auto SendParam = [](double input, unsigned offset, bool debugPrint=false) {
+    auto WriteDouble = [&Handle](
+            double input, unsigned offset, bool debugPrint=false)
+    {
         int inputFixed = (int)(input*SCALE_FACTOR);
         if (debugPrint)
             printf("0x%04x: %08x\n", offset, inputFixed);
@@ -108,36 +58,27 @@ int main(int argc, char **argv)
         ZestSC1WriteRegister(Handle, offset+3, (inputFixed>>24) & 0xFF);
     };
 
-    auto GetResult = [](unsigned offset, unsigned bytes, bool debugPrint=false) {
+    auto ReadNBytes = [&Handle](
+            unsigned offset, unsigned bytes, bool debugPrint=false)
+    {
         unsigned result = 0;
         for(; bytes!=0; bytes--) {
             unsigned char ub;
-            ZestSC1ReadRegister(Handle, 0x2000+offset+bytes-1, &ub);
+            ZestSC1ReadRegister(Handle, offset+bytes-1, &ub);
             result <<= 8; result |= ub;
             if (debugPrint)
-                printf("0x%04x: %02x\n", 0x2000+offset+bytes-1, (unsigned)ub);
+                printf("0x%04x: %02x\n", offset+bytes-1, (unsigned)ub);
         }
         return result;
     };
 
-    auto Read = [](unsigned offset, bool debugPrint=false) {
-        unsigned char ub;
-        ZestSC1ReadRegister(Handle, offset, &ub);
-        if (debugPrint)
-            printf("R:0x%08x: %02x\n", offset, (unsigned)ub);
-        return ub;
-    };
-    auto Write = [](unsigned offset, unsigned char data, bool debugPrint=false) {
+    auto WriteU8 = [&Handle](
+            unsigned offset, unsigned char data, bool debugPrint=false)
+    {
         ZestSC1WriteRegister(Handle, offset, data);
         if (debugPrint)
             printf("W:0x%04x: %02x\n", offset, (unsigned)data);
     };
-
-    // double inputX = 0.4099999999999997;
-    // double inputY = -0.21500000000000008; // => 112
-
-    // double inputX = 0.4399999999999995;
-    // double inputY = 0.24999999999999978; // => 16
 
     FILE *fp = fopen("mandel.pgm", "w");
     fprintf(fp, "P5\n320 240\n255\n");
@@ -145,55 +86,53 @@ int main(int argc, char **argv)
     double inputX = -2.2;
     double inputY = 1.1;
 
-    //GetResult(4, 4, true);
-    SendParam(inputX, 0x2060);
-    //GetResult(4, 4, true);
-    SendParam(inputY, 0x2064);
-    //GetResult(4, 4, true);
+    WriteDouble(inputX, 0x2060);
+    WriteDouble(inputY, 0x2064);
 
-    // puts("[-] Waiting for pixel line to be computed...");
+    struct timeval Start;
     unsigned output = 1, oldOutput = 0xFFFFFFFF;
+    gettimeofday(&Start, NULL);
+    printf("[-] Computing scanline:         ");
     while(1) {
-        output = GetResult(4, 4);
+        output = ReadNBytes(0x2004, 4);
         if (output == 0x99999999)
             break;
         if (oldOutput > output) {
             oldOutput = output;
-            //printf("\b\b\b\b\b\b\b%03d/240", output);
-            printf("%d\n", output);
+            printf("\b\b\b\b\b\b\b%03d/240", output);
             fflush(stdout);
         }
     }
+    struct timeval End;
+    gettimeofday(&End, NULL);
 
-    // output = GetResult(0, 4, false);
+    auto timeTakenInMS = [&Start, &End]() {
+        unsigned long long uSecStart =
+            (unsigned long long)Start.tv_sec*1000000ull +
+            (unsigned long long)Start.tv_usec;
+        unsigned long long uSecEnd =
+            (unsigned long long)End.tv_sec*1000000ull +
+            (unsigned long long)End.tv_usec;
+        return (uSecEnd - uSecStart)/1000;
+    };
+    printf("\n[-] Frame computed (took %lld ms)\n", timeTakenInMS());
+
+    // output = ReadNBytes(0x2000, 4, false);
     // cout << "input_x: " << to_double(output) << "\n\n";
+    // auto debug1 = [&ReadNBytes]() { printf("debug1: 0x%08x\n", ReadNBytes(0x2000, 4)); };
+    // auto debug2 = [&ReadNBytes]() { printf("debug2: 0x%08x\n", ReadNBytes(0x2004, 4)); };
 
-    auto debug1 = [&GetResult]() { printf("debug1: 0x%08x\n", GetResult(0, 4)); };
-    auto debug2 = [&GetResult]() { printf("debug2: 0x%08x\n", GetResult(4, 4)); };
-
-    sleep(1);
-
-    debug2();
-    debug1();
+    puts("[-] Dumping frame over USB...");
     void *Buffer = malloc(320*240);
-    Write(0x2080, 1);
-    debug2();
-    debug1();
-    // debug2();
-    // debug1();
-    // debug2();
-    // debug1();
-    // debug2();
-    // debug1();
-    // debug2();
+    WriteU8(0x2080, 1);
     ZestSC1ReadData(Handle, Buffer, 320*240);
     fwrite(Buffer, 1, 320*240, fp);
     fclose(fp);
+    free(Buffer);
 
-    //
-    // Close the card
-    //
+    puts("[-] Releasing FPGA resources...");
     ZestSC1CloseCard(Handle);
 
+    puts("[-] Done.");
     return 0;
 }

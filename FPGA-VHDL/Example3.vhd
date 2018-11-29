@@ -16,8 +16,8 @@ entity Example3 is
         USB_StreamSLOE_n : out std_logic;
         USB_StreamSLRD_n : out std_logic;
         USB_StreamSLWR_n : out std_logic;
-        USB_StreamData : inout std_logic_vector(15 downto 0);
         USB_StreamFX2Rdy : in std_logic;
+        USB_StreamData : inout std_logic_vector(15 downto 0);
 
         USB_RegCLK : in std_logic;
         USB_RegAddr : in std_logic_vector(15 downto 0);
@@ -71,8 +71,8 @@ architecture arch of Example3 is
             USB_StreamSLOE_n : out std_logic;
             USB_StreamSLRD_n : out std_logic;
             USB_StreamSLWR_n : out std_logic;
-            USB_StreamData : inout std_logic_vector(15 downto 0);
             USB_StreamFX2Rdy : in std_logic;
+            USB_StreamData : inout std_logic_vector(15 downto 0);
 
             USB_RegCLK : in std_logic;
             USB_RegAddr : in std_logic_vector(15 downto 0);
@@ -140,6 +140,16 @@ architecture arch of Example3 is
     signal WE : std_logic;
     signal RE : std_logic;
 
+    -- signals connected to the FPGA's USB inputs (coming from PC)
+    signal USB_DataIn : std_logic_vector(15 downto 0);
+    signal USB_DataInBusy : std_logic;
+    signal USB_DataInWE : std_logic;
+
+    -- signals connected to the FPGA's USB outputs (going to PC)
+    signal USB_DataOut : std_logic_vector(15 downto 0);
+    signal USB_DataOutBusy : std_logic;
+    signal USB_DataOutWE : std_logic := '0';
+
     -- SRAM interface
     signal SRAMAddr : std_logic_vector(22 downto 0);
     signal SRAMDataOut : std_logic_vector(17 downto 0);
@@ -158,9 +168,11 @@ architecture arch of Example3 is
         drawPixels,
         drawPixelsWaitForWrite,
         waitForMandelbrot,
-        doneComputingWaitForReading,
-        reading1stCycle,
-        reading2ndCycle
+        waitForDMAtoPC,
+        DMAing,
+        DMAwaitingSRAM,
+        DMAwaitingForUSB,
+        DMAwaitingForUSB2
     );
     signal state : state_type;
 
@@ -171,14 +183,14 @@ architecture arch of Example3 is
     signal debug1 : std_logic_vector(31 downto 0);
     signal debug2 : std_logic_vector(31 downto 0);
 
-    signal startReading : std_logic := '0';
-    signal stopReading : std_logic := '0';
     signal startComputing : std_logic := '0';
-    signal TestByteRead : std_logic_vector(17 downto 0);
-
     signal RowsToCompute : natural range 0 to 1023;
     signal PixelsToCompute : natural range 0 to 1023;
     signal PixelAddrInSRAM : unsigned(22 downto 0);
+
+    -- Data back to PC...
+    signal ReadCount : natural;
+    signal ReadingActive : std_logic := '0';
 
     -- Signals used to interface with Mandelbrot engine
     signal input_x, input_y     : std_logic_vector(31 downto 0);
@@ -186,11 +198,15 @@ architecture arch of Example3 is
     signal startMandelEngine    : std_logic;
     signal OutputNumber         : std_logic_vector(7 downto 0);
     signal mandelEngineFinished : std_logic;
+
+    -- Debugging USB transfers
+    signal Ramp : unsigned(15 downto 0);
+    signal RampError : std_logic;
 begin
 
     -- Tie unused signals
     User_Signals <= "ZZZZZZZZ";
-    LEDs <= "11111111";
+    LEDs(7 downto 1) <= "1111111";
     IO_CLK_N <= 'Z';
     IO_CLK_P <= 'Z';
     Interrupt <= '0';
@@ -208,15 +224,20 @@ begin
             SRAMDataOut <= (others => '0');
             debug1 <= (others => '0');
             debug2 <= (others => '0');
+            ReadingActive <= '0';
+            USB_DataOutWE <= '0';
+            USB_DataOut <= (others => '0');
+            USB_DataInBusy <= '0';
 
         elsif rising_edge(CLK) then
             WE_old <= WE;
             SRAMWE <= '0';
             SRAMRE <= '0';
+            USB_DataInBusy <= '0';
             startComputing <= '0';
             startMandelEngine <= '0';
-            startReading <= '0';
-            stopReading <= '0';
+            ReadingActive <= '0';
+            USB_DataOutWE <= '0';
 
             -- Was the WE signal just raised?
             if (WE='1' and WE_old = '0') then
@@ -237,23 +258,18 @@ begin
                                     PixelAddrInSRAM <= (others => '0');
                                     startComputing <= '1';
 
-                    when X"2080" =>
-                        startReading <= '1';
-                        SRAMAddr <= (others => '0');
-
-                    when X"2081" =>
-                        startReading <= '1';
-                        SRAMAddr <= std_logic_vector(unsigned(SRAMAddr) + 1);
-
-                    when X"2082" =>
-                        stopReading <= '1';
+                    when X"2080" => ReadingActive <= '1';
+                                    ReadCount <= 320*240;
+                                    SRAMAddr <= (others => '0');
 
                     when others =>
                 end case;
+
             end if; -- WE='1'
 
             case state is
                 when receiving_input =>
+                    debug2 <= X"22222222";
                     if startComputing = '1' then
                         input_x_orig <= input_x;
                         state <= drawRows;
@@ -266,7 +282,8 @@ begin
                         PixelsToCompute <= 320;
                         state <= drawPixels;
                     else
-                        state <= doneComputingWaitForReading;
+                        state <= waitForDMAtoPC;
+                        SRAMAddr <= (others => '0');
                     end if;
 
                 when drawPixels =>
@@ -287,7 +304,6 @@ begin
                         state <= waitForMandelbrot;
                     else
                         SRAMDataOut <= "0000000000" & OutputNumber;
-                        -- SRAMDataOut <= std_logic_vector(to_unsigned(PixelsToCompute, SRAMDataOut'length));
                         -- Go right by 3.3/320.0
                         input_x <= std_logic_vector(unsigned(input_x) + 1384120);
                         SRAMAddr <= std_logic_vector(PixelAddrInSRAM);
@@ -299,34 +315,59 @@ begin
                     SRAMWE <= '1';
                     state <= drawPixels;
 
-                when doneComputingWaitForReading =>
+                when waitForDMAtoPC =>
                     debug2 <= X"99999999";
-                    if startReading = '1' then
-                        SRAMRE <= '1';
-                        state <= reading1stCycle;
-                    elsif stopReading = '1' then
-                        state <= receiving_input;
+                    debug1 <= "000000000" & SRAMAddr;
+                    if ReadingActive = '1' then
+                        state <= DMAing;
                     else
-                        state <= doneComputingWaitForReading;
+                        state <= waitForDMAtoPC;
                     end if;
 
-                when reading1stCycle =>
-                    state <= reading2ndCycle;
-
-                when reading2ndCycle =>
-                    if SRAMValid = '1' then
-                        TestByteRead <= SRAMDataIn;
-                        state <= doneComputingWaitForReading;
-                        -- debug2 <= X"EEEEEEEE";
+                when DMAing =>
+                    debug2 <= std_logic_vector(to_unsigned(ReadCount, debug2'length));
+                    debug1 <= "000000000" & SRAMAddr;
+                    if ReadCount /= 0 then
+                        -- SRAMRE <= '1';
+                        state <= DMAwaitingSRAM;
                     else
-                        state <= reading2ndCycle;
+                        state <= receiving_input;
+                    end if;
+
+                when DMAwaitingSRAM =>
+                    -- if SRAMValid = '1' then
+                    --     USB_DataOut <= "00000000" & SRAMDataIn(7 downto 0);
+                    --     ReadCount <= ReadCount - 1;
+                    --     state <= DMAwaitingForUSB;
+                    -- else
+                    --     state <= DMAwaitingSRAM;
+                    -- end if;
+                    USB_DataOut <= "00000000" & "01101100";
+                    ReadCount <= ReadCount - 1;
+                    state <= DMAwaitingForUSB;
+
+                when DMAwaitingForUSB =>
+                    if USB_DataOutBusy = '1' then
+                        state <= DMAwaitingForUSB;
+                    else
+                        state <= DMAwaitingForUSB2;
+                    end if;
+
+                when DMAwaitingForUSB2 =>
+                    if USB_DataOutBusy = '1' then
+                        state <= DMAwaitingForUSB;
+                    else
+                        USB_DataOutWE <= '1';
+                        SRAMAddr <= std_logic_vector(unsigned(SRAMAddr) + 1);
+                        state <= DMAing;
                     end if;
 
             end case; -- case state is ...
+
         end if; -- if rising_edge(CLK) ...
     end process;
 
-    process (Addr, debug1, debug2, TestByteRead)
+    process (Addr, debug1, debug2)
     begin
         case Addr is
             when X"2000" => DataOut <= debug1(7 downto 0);
@@ -339,14 +380,26 @@ begin
             when X"2006" => DataOut <= debug2(23 downto 16);
             when X"2007" => DataOut <= debug2(31 downto 24);
 
-            when X"2010" => DataOut <= TestByteRead(7 downto 0);
-            when X"2011" => DataOut <= TestByteRead(15 downto 8);
-            when X"2012" => DataOut <= "000000" & TestByteRead(17 downto 16);
-            when X"2013" => DataOut <= X"00";
-
             when others => DataOut <= X"AA";
         end case;
     end process;
+
+    -- Always receive data from the host
+    process (RST, CLK)
+    begin
+        if (RST='1') then
+            RampError <= '0';
+            Ramp <= X"0000";
+        elsif (CLK'event and CLK='1') then
+            if (USB_DataInWE='1') then -- the moment we receive the first USB write, start simulating RX back!
+                if (unsigned(USB_DataIn)/=Ramp) then
+                    RampError <= '1';
+                end if;
+                Ramp <= Ramp + 1;
+            end if;
+        end if;
+    end process;
+    LEDs(0) <= not RampError;
 
     -- Instantiate components
 
@@ -395,13 +448,16 @@ begin
 
             User_CLK => CLK,
             User_RST => RST,
+
             User_StreamBusGrantLength => X"002",
-            User_StreamDataIn => open,
-            User_StreamDataInWE => open,
-            User_StreamDataInBusy => '1',
-            User_StreamDataOut => "0000000000000000", 
-            User_StreamDataOutWE => '0',
-            User_StreamDataOutBusy => open,
+
+            User_StreamDataIn => USB_DataIn,
+            User_StreamDataInWE => USB_DataInWE,
+            User_StreamDataInBusy => USB_DataInBusy,
+
+            User_StreamDataOut => USB_DataOut, 
+            User_StreamDataOutWE => USB_DataOutWE,
+            User_StreamDataOutBusy => USB_DataOutBusy,
 
             -- Register interface
             User_RegAddr => Addr,

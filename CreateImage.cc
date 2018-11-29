@@ -87,7 +87,15 @@ int main(int argc, char **argv)
     // Configure the FPGA
     //
     ZestSC1ConfigureFromFile(Handle, (char *)"FPGA-VHDL/Example3.bit");
-    ZestSC1SetSignalDirection(Handle, 0xf);
+    //ZestSC1SetSignalDirection(Handle, 0xf);
+
+#define TRANSFER_LENGTH (1024*1024)
+    unsigned short *Buffer = (unsigned short *)malloc(TRANSFER_LENGTH);
+    for (Count=0; Count<TRANSFER_LENGTH/2; Count++)
+        Buffer[Count] = (unsigned short)(Count&0xffff);
+    ZestSC1WriteData(Handle, Buffer, TRANSFER_LENGTH);
+    puts("All good.");
+    exit(0);
 
     // Helper functions
     auto SendParam = [](double input, unsigned offset, bool debugPrint=false) {
@@ -160,21 +168,26 @@ int main(int argc, char **argv)
     // output = GetResult(0, 4, false);
     // cout << "input_x: " << to_double(output) << "\n\n";
 
-    // auto debug1 = [&GetResult]() { printf("debug1: 0x%08x\n", GetResult(0, 4)); };
-    // auto debug2 = [&GetResult]() { printf("debug2: 0x%08x\n", GetResult(4, 4)); };
+    auto debug1 = [&GetResult]() { printf("debug1: 0x%08x\n", GetResult(0, 4)); };
+    auto debug2 = [&GetResult]() { printf("debug2: 0x%08x\n", GetResult(4, 4)); };
 
+    sleep(1);
+
+    debug2();
+    debug1();
+    void *Buffer2 = malloc(320*240);
     Write(0x2080, 1);
-    for(int i=0; i<320*240; i++) {
-        //debug2();
-        //debug2();
-        //printf("At SRAM[%d]: %04x\n", i, GetResult(0x10, 4));
-        unsigned color = Read(0x2010);
-        fprintf(fp, "%c", color&0xff);
-        //debug2();
-        Write(0x2081, 1);
-    }
-    Write(0x2082, 1);
-
+    debug2();
+    debug1();
+    // debug2();
+    // debug1();
+    // debug2();
+    // debug1();
+    // debug2();
+    // debug1();
+    // debug2();
+    ZestSC1ReadData(Handle, Buffer2, 320*240);
+    fwrite(Buffer, 1, 320*240, fp);
     fclose(fp);
 
     //

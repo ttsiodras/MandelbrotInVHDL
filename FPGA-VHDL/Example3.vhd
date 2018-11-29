@@ -49,6 +49,18 @@ end Example3;
 
 architecture arch of Example3 is
 
+    -- Declare components
+    component Mandelbrot
+        port (
+            CLK              : in std_logic;
+            RST              : in std_logic;
+            input_x, input_y : in std_logic_vector(31 downto 0);
+            startWorking     : in std_logic;
+            OutputNumber     : out std_logic_vector(7 downto 0);
+            finishedWorking  : out std_logic
+        );
+    end component;
+
     component ZestSC1_Interfaces
         port (
             -- FPGA pin connections
@@ -149,6 +161,21 @@ architecture arch of Example3 is
     -- Interrupt signal
     signal Interrupt : std_logic;
 
+    -- My types
+    type state_type is (
+        receiving_input,
+        drawRows,
+        drawPixels,
+        drawPixelsWaitForWrite,
+        waitForMandelbrot,
+        waitForDMAtoPC,
+        DMAing,
+        DMAwaitingSRAM,
+        DMAwaitingForUSB,
+        DMAwaitingForUSB2
+    );
+    signal state : state_type;
+
     -- Signals
     signal WE_old : std_logic;
 
@@ -192,6 +219,7 @@ begin
         if (RST='1') then
             input_x <= X"00000000";
             input_y <= X"00000000";
+            state <= receiving_input;
             WE_old <= '0';
             SRAMDataOut <= (others => '0');
             debug1 <= (others => '0');
@@ -239,7 +267,121 @@ begin
 
             end if; -- WE='1'
 
+            case state is
+                when receiving_input =>
+                    debug2 <= X"22222222";
+                    if startComputing = '1' then
+                        input_x_orig <= input_x;
+                        state <= drawRows;
+                    end if;
+
+                when drawRows =>
+                    if RowsToCompute /= 0 then
+                        RowsToCompute <= RowsToCompute - 1;
+                        debug2 <= std_logic_vector(to_unsigned(RowsToCompute, debug2'length));
+                        PixelsToCompute <= 320;
+                        state <= drawPixels;
+                    else
+                        state <= waitForDMAtoPC;
+                        SRAMAddr <= (others => '0');
+                    end if;
+
+                when drawPixels =>
+                    if PixelsToCompute /= 0 then
+                        PixelsToCompute <= PixelsToCompute - 1;
+                        debug1 <= std_logic_vector(to_unsigned(PixelsToCompute, debug1'length));
+                        startMandelEngine <= '1';
+                        state <= waitForMandelbrot;
+                    else
+                        input_x <= input_x_orig;
+                        -- Go down by 2.2/240
+                        input_y <= std_logic_vector(unsigned(input_y) - 1230329);
+                        state <= drawRows;
+                    end if;
+
+                when waitForMandelbrot =>
+                    if mandelEngineFinished = '0' then
+                        state <= waitForMandelbrot;
+                    else
+                        SRAMDataOut <= "0000000000" & OutputNumber;
+                        -- Go right by 3.3/320.0
+                        input_x <= std_logic_vector(unsigned(input_x) + 1384120);
+                        SRAMAddr <= std_logic_vector(PixelAddrInSRAM);
+                        PixelAddrInSRAM <= PixelAddrInSRAM + 1;
+                        state <= drawPixelsWaitForWrite;
+                    end if;
+
+                when drawPixelsWaitForWrite =>
+                    SRAMWE <= '1';
+                    state <= drawPixels;
+
+                when waitForDMAtoPC =>
+                    debug2 <= X"99999999";
+                    debug1 <= "000000000" & SRAMAddr;
+                    if ReadingActive = '1' then
+                        state <= DMAing;
+                    else
+                        state <= waitForDMAtoPC;
+                    end if;
+
+                when DMAing =>
+                    debug2 <= std_logic_vector(to_unsigned(ReadCount, debug2'length));
+                    debug1 <= "000000000" & SRAMAddr;
+                    if ReadCount /= 0 then
+                        -- SRAMRE <= '1';
+                        state <= DMAwaitingSRAM;
+                    else
+                        state <= receiving_input;
+                    end if;
+
+                when DMAwaitingSRAM =>
+                    -- if SRAMValid = '1' then
+                    --     USB_DataOut <= "00000000" & SRAMDataIn(7 downto 0);
+                    --     ReadCount <= ReadCount - 1;
+                    --     state <= DMAwaitingForUSB;
+                    -- else
+                    --     state <= DMAwaitingSRAM;
+                    -- end if;
+                    USB_DataOut <= "00000000" & "01101100";
+                    ReadCount <= ReadCount - 1;
+                    state <= DMAwaitingForUSB;
+
+                when DMAwaitingForUSB =>
+                    if USB_DataOutBusy = '1' then
+                        state <= DMAwaitingForUSB;
+                    else
+                        state <= DMAwaitingForUSB2;
+                    end if;
+
+                when DMAwaitingForUSB2 =>
+                    if USB_DataOutBusy = '1' then
+                        state <= DMAwaitingForUSB;
+                    else
+                        USB_DataOutWE <= '1';
+                        SRAMAddr <= std_logic_vector(unsigned(SRAMAddr) + 1);
+                        state <= DMAing;
+                    end if;
+
+            end case; -- case state is ...
+
         end if; -- if rising_edge(CLK) ...
+    end process;
+
+    process (Addr, debug1, debug2)
+    begin
+        case Addr is
+            when X"2000" => DataOut <= debug1(7 downto 0);
+            when X"2001" => DataOut <= debug1(15 downto 8);
+            when X"2002" => DataOut <= debug1(23 downto 16);
+            when X"2003" => DataOut <= debug1(31 downto 24);
+
+            when X"2004" => DataOut <= debug2(7 downto 0);
+            when X"2005" => DataOut <= debug2(15 downto 8);
+            when X"2006" => DataOut <= debug2(23 downto 16);
+            when X"2007" => DataOut <= debug2(31 downto 24);
+
+            when others => DataOut <= X"AA";
+        end case;
     end process;
 
     -- Always receive data from the host
@@ -260,6 +402,17 @@ begin
     LEDs(0) <= not RampError;
 
     -- Instantiate components
+
+    FractalEngine : Mandelbrot
+        port map (
+            CLK => CLK,
+            RST => RST,
+            input_x => input_x,
+            input_y => input_y,
+            startWorking => startMandelEngine,
+            OutputNumber => OutputNumber,
+            finishedWorking => mandelEngineFinished
+        );
 
     Interfaces : ZestSC1_Interfaces
         port map (

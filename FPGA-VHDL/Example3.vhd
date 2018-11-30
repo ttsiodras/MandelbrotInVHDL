@@ -1,12 +1,13 @@
+------------------------------------------------------------------
+-- This is the top-level of my simple "direct-to-VHDL" translation
+-- of a Mandelbrot fractal computing engine.
+------------------------------------------------------------------
+
 library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.NUMERIC_STD.ALL;
 
---  Uncomment the following lines to use the declarations that are
---  provided for instantiating Xilinx primitive components.
---library UNISIM;
---use UNISIM.VComponents.all;
-
+-- The top-level needs to hook up with ZestSC1 connections:
 entity Example3 is
     port (
         USB_StreamCLK : in std_logic;
@@ -49,21 +50,37 @@ end Example3;
 
 architecture arch of Example3 is
 
-    -- Declare components
+    -- This is the actual fractal computing engine.
+    -- Details about it are in "Mandelbrot.vhd";
     component Mandelbrot
         port (
             CLK              : in std_logic;
             RST              : in std_logic;
+
+            -- These are the input coordinates on the complex plane
+            -- for which the computation will take place.
             input_x, input_y : in std_logic_vector(31 downto 0);
+
+            -- When this is pulsed once (0->1->0) the engine "wakes up" and
+            -- starts computing the output color.
             startWorking     : in std_logic;
+
+            --  When it concludes computing, it stores the result here...
             OutputNumber     : out std_logic_vector(7 downto 0);
+
+            -- ...and raises this ; to signal completion.
             finishedWorking  : out std_logic
         );
     end component;
 
+    -- In addition to a single instance of the computing engine
+    -- (for now, no pipelining - yet) we also instantiate the ZestSC1 stuff.
     component ZestSC1_Interfaces
         port (
-            -- FPGA pin connections
+            -----------------------------------------------
+            -- The deep dark magic of the ZestSC1 design.
+            --     Don't mess with any of these.
+            -----------------------------------------------
             USB_StreamCLK : in std_logic;
             USB_StreamFIFOADDR : out std_logic_vector(1 downto 0);
             USB_StreamPKTEND_n : out std_logic;
@@ -94,32 +111,58 @@ architecture arch of Example3 is
             S_OE_N: out std_logic;
             S_WE_N: out std_logic;
 
-            -- User connections
-            -- Streaming interface
+            -------------------------------------------------------
+            -- The foundations of life, the universe and everything
+            -------------------------------------------------------
             User_CLK : out std_logic;
             User_RST : out std_logic;
 
+            ----------------------
+            -- Streaming interface
+            ----------------------
+
+            -- size of USB transactions
+            -- (bigger ==> faster speed, worse latency)
             User_StreamBusGrantLength : in std_logic_vector(11 downto 0);
 
+            -- from the PC to the board
             User_StreamDataIn : out std_logic_vector(15 downto 0);
             User_StreamDataInWE : out std_logic;
             User_StreamDataInBusy : in std_logic;
 
+            -- from the board to the PC.
+            -- (actually used - to send the framebuffer data back)
             User_StreamDataOut : in std_logic_vector(15 downto 0);
             User_StreamDataOutWE : in std_logic;
             User_StreamDataOutBusy : out std_logic;
 
+            ---------------------
             -- Register interface
+            ---------------------
+
+            -- This is used to send:
+            --
+            --  the topx, topy (in complex plane, so fixed point coordinates)
+            --  the stepx, stepy (to move for each pixel - also fixed point)
             User_RegAddr : out std_logic_vector(15 downto 0);
             User_RegDataIn : out std_logic_vector(7 downto 0);
             User_RegDataOut : in std_logic_vector(7 downto 0);
             User_RegWE : out std_logic;
             User_RegRE : out std_logic;
 
+            -------------------------
             -- Signals and interrupts
+            -------------------------
+
+            -- This is unused. The Linux implementation of ZestSC1's library
+            -- doesn't deliver the interrupt.
             User_Interrupt : in std_logic;
 
+            -----------------
             -- SRAM interface
+            -----------------
+
+            -- This is used to store the computed colors,
             User_SRAM_A: in std_logic_vector(22 downto 0);
             User_SRAM_W: in std_logic;
             User_SRAM_R: in std_logic;
@@ -161,20 +204,21 @@ architecture arch of Example3 is
     -- Interrupt signal
     signal Interrupt : std_logic;
 
-    -- My types
+    -- The State Machine (TM)
     type state_type is (
-        receiving_input,
-        drawRows,
-        drawPixels,
-        drawPixelsWaitForWrite,
-        waitForMandelbrot,
-        waitForDMAtoPC,
-        DMAing,
+        receiving_input,         -- waiting for X,Y of upper left corner
+        drawRows,                -- outer loop (per row)
+        drawPixels,              -- inner loop (per pixel)
+        waitForMandelbrot,       -- wait for engine to compute color
+        drawPixelsWaitForWrite,  -- engine finished, write to SRAM
+
+        waitForDMAtoPC,          -- wait for PC to initiate USB burst read
+        DMAing,                  -- ...and read from memory
         DMAwaitingSRAM,
-        DMAwaitingSRAM2,
-        DMAwaitingSRAM3,
-        DMAwaitingForUSB,
-        DMAwaitingForUSB2
+        DMAwaitingSRAM2,         -- ...read two pixels, in fact
+        DMAwaitingSRAM3,         -- since our USB bus is 16-bit big
+        DMAwaitingForUSB,        -- wait for USB to say it's ready
+        DMAwaitingForUSB2        -- and send the data.
     );
     signal state : state_type;
 
@@ -438,7 +482,7 @@ begin
             USB_StreamSLWR_n => USB_StreamSLWR_n,
             USB_StreamData => USB_StreamData,
             USB_StreamFX2Rdy => USB_StreamFX2Rdy,
-    
+
             USB_RegCLK => USB_RegCLK,
             USB_RegAddr => USB_RegAddr,
             USB_RegData => USB_RegData,
@@ -468,7 +512,7 @@ begin
             User_StreamDataInWE => USB_DataInWE,
             User_StreamDataInBusy => USB_DataInBusy,
 
-            User_StreamDataOut => USB_DataOut, 
+            User_StreamDataOut => USB_DataOut,
             User_StreamDataOutWE => USB_DataOutWE,
             User_StreamDataOutBusy => USB_DataOutBusy,
 

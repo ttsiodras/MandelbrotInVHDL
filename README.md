@@ -1,5 +1,9 @@
 I *really* need to blog about this...
 
+<center>
+<img src="contrib/vhdlMandel.jpg">
+</center>
+
 This project is basically my gateway into actually learning VHDL.
 I've already succeeded in implementing a straightforward "C-to-VHDL"
 translation of the algorithm, with the HW side fully implementing the

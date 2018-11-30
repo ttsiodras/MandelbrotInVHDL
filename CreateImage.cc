@@ -5,7 +5,10 @@
 
 #include "ZestSC1.h"
 
+const unsigned WIDTH = 640;
+const unsigned HEIGHT = 480;
 const unsigned FRACTIONAL_PART = 27;
+
 const double SCALE_FACTOR = ((double)(1<<FRACTIONAL_PART));
 
 double to_double(int x)
@@ -82,7 +85,7 @@ int main(int argc, char **argv)
 
     for (int i=0; i<3; i++) {
         FILE *fp = fopen("mandel.pgm", "w");
-        fprintf(fp, "P5\n320 240\n255\n");
+        fprintf(fp, "P5\n%u %u\n255\n", WIDTH, HEIGHT);
 
         double inputX = -2.2 + 0.3*i;
         double inputY = 1.1;
@@ -100,13 +103,13 @@ int main(int argc, char **argv)
                 break;
             if (oldOutput > output) {
                 oldOutput = output;
-                printf("\b\b\b\b\b\b\b%03d/240", output);
+                printf("\b\b\b\b\b\b\b%03d/%u", output, HEIGHT);
                 fflush(stdout);
             }
         }
         struct timeval End;
         gettimeofday(&End, NULL);
-        printf("\b\b\b\b\b\b\b%03d/240", 0);
+        printf("\b\b\b\b\b\b\b%03d/%u", 0, HEIGHT);
 
         auto timeTakenInMS = [&Start, &End]() {
             unsigned long long uSecStart =
@@ -125,13 +128,13 @@ int main(int argc, char **argv)
         // auto debug2 = [&ReadNBytes]() { printf("debug2: 0x%08x\n", ReadNBytes(0x2004, 4)); };
 
         puts("[-] Dumping frame over USB...");
-        void *Buffer = malloc(320*240);
+        void *Buffer = malloc(WIDTH*HEIGHT);
         WriteU8(0x2080, 1);
         gettimeofday(&Start, NULL);
-        ZestSC1ReadData(Handle, Buffer, 320*240);
+        ZestSC1ReadData(Handle, Buffer, WIDTH*HEIGHT);
         gettimeofday(&End, NULL);
         printf("[-] Frame sent over USB (took %lld ms)\n", timeTakenInMS());
-        fwrite(Buffer, 1, 320*240, fp);
+        fwrite(Buffer, 1, WIDTH*HEIGHT, fp);
         fclose(fp);
         free(Buffer);
     }

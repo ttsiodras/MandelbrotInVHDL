@@ -229,8 +229,17 @@ architecture arch of Example3 is
     -- Flag signalling we received all inputs and should start processing.
     signal startComputing : std_logic := '0';
 
-    signal RowsToCompute : natural range 0 to 1023;
-    signal PixelsToCompute : natural range 0 to 1023;
+    -- The size of the window (in pixels) that we are computing
+    constant spanx : integer := 640;
+    constant spany : integer := 480;
+
+    -- The two loop counters - outer (Y)
+    signal RowsToCompute : natural range 0 to spany;
+
+    -- ...and inner (X)
+    signal PixelsToCompute : natural range 0 to spanx;
+
+
     signal PixelAddrInSRAM : unsigned(22 downto 0);
 
     -- Data back to PC...
@@ -299,12 +308,12 @@ begin
                     when X"2066" => input_y(23 downto 16) <= DataIn;
                     when X"2067" => input_y(31 downto 24) <= DataIn;
                                     debug2 <= X"55555555";
-                                    RowsToCompute <= 240;
+                                    RowsToCompute <= spany;
                                     PixelAddrInSRAM <= (others => '0');
                                     startComputing <= '1';
 
                     when X"2080" => ReadingActive <= '1';
-                                    ReadCount <= 320*240;
+                                    ReadCount <= spanx*spany;
                                     SRAMAddr <= (others => '0');
 
                     when others =>
@@ -324,7 +333,7 @@ begin
                     if RowsToCompute /= 0 then
                         RowsToCompute <= RowsToCompute - 1;
                         debug2 <= std_logic_vector(to_unsigned(RowsToCompute, debug2'length));
-                        PixelsToCompute <= 320;
+                        PixelsToCompute <= spanx;
                         state <= drawPixels;
                     else
                         state <= waitForDMAtoPC;
@@ -339,8 +348,8 @@ begin
                         state <= waitForMandelbrot;
                     else
                         input_x <= input_x_orig;
-                        -- Go down by 2.2/240
-                        input_y <= std_logic_vector(unsigned(input_y) - 1230329);
+                        -- Go down by 2.2/480
+                        input_y <= std_logic_vector(unsigned(input_y) - 615164);
                         state <= drawRows;
                     end if;
 
@@ -349,8 +358,8 @@ begin
                         state <= waitForMandelbrot;
                     else
                         SRAMDataOut <= "0000000000" & OutputNumber;
-                        -- Go right by 3.3/320.0
-                        input_x <= std_logic_vector(unsigned(input_x) + 1384120);
+                        -- Go right by 3.3/640.0
+                        input_x <= std_logic_vector(unsigned(input_x) + 692060);
                         SRAMAddr <= std_logic_vector(PixelAddrInSRAM);
                         PixelAddrInSRAM <= PixelAddrInSRAM + 1;
                         state <= drawPixelsWaitForWrite;

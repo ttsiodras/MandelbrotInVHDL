@@ -217,8 +217,7 @@ architecture arch of Example3 is
         DMAwaitingSRAM,
         DMAwaitingSRAM2,         -- ...read two pixels, in fact
         DMAwaitingSRAM3,         -- since our USB bus is 16-bit big
-        DMAwaitingForUSB,        -- wait for USB to say it's ready
-        DMAwaitingForUSB2        -- and send the data.
+        DMAwaitingForUSB         -- and then wait for USB to say it's ready
     );
     signal state : state_type;
 
@@ -484,13 +483,7 @@ begin
                     end if;
 
                 when DMAwaitingForUSB =>
-                    if USB_DataOutBusy = '1' then
-                        state <= DMAwaitingForUSB;
-                    else
-                        state <= DMAwaitingForUSB2;
-                    end if;
-
-                when DMAwaitingForUSB2 =>
+                    -- Wait until we can send the two pixel data over USB
                     if USB_DataOutBusy = '1' then
                         state <= DMAwaitingForUSB;
                     else
@@ -503,6 +496,7 @@ begin
         end if; -- if rising_edge(CLK) ...
     end process;
 
+    -- Provide read-access to the two debugging information "carriers".
     process (Addr, debug1, debug2)
     begin
         case Addr is
@@ -535,6 +529,9 @@ begin
 
     Interfaces : ZestSC1_Interfaces
         port map (
+            -- The deep dark magic of the ZestSC1 design.
+            -- Don't mess with any of these.
+
             USB_StreamCLK => USB_StreamCLK,
             USB_StreamFIFOADDR => USB_StreamFIFOADDR,
             USB_StreamPKTEND_n => USB_StreamPKTEND_n,
@@ -568,12 +565,16 @@ begin
             User_CLK => CLK,
             User_RST => RST,
 
-            User_StreamBusGrantLength => X"002",
+            -- We don't care much about speed, do we?
+            -- This should suffice anyway.
+            User_StreamBusGrantLength => X"100",
 
+            -- Unused - the streaming interface sending data from the PC
             User_StreamDataIn => USB_DataIn,
             User_StreamDataInWE => USB_DataInWE,
             User_StreamDataInBusy => USB_DataInBusy,
 
+            -- The Streaming interface back to the PC (used to send frame)
             User_StreamDataOut => USB_DataOut,
             User_StreamDataOutWE => USB_DataOutWE,
             User_StreamDataOutBusy => USB_DataOutBusy,

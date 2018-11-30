@@ -49,6 +49,9 @@ int main(int argc, char **argv)
     ZestSC1OpenCard(CardIDs[0], &Handle);
     ZestSC1ConfigureFromFile(Handle, (char *)"FPGA-VHDL/Example3.bit");
 
+    // A couple of helper functions
+
+    // Provide fixed-point inputs
     auto WriteDouble = [&Handle](
             double input, unsigned offset, bool debugPrint=false)
     {
@@ -61,6 +64,7 @@ int main(int argc, char **argv)
         ZestSC1WriteRegister(Handle, offset+3, (inputFixed>>24) & 0xFF);
     };
 
+    // Read 32-bit outputs
     auto ReadNBytes = [&Handle](
             unsigned offset, unsigned bytes, bool debugPrint=false)
     {
@@ -75,6 +79,7 @@ int main(int argc, char **argv)
         return result;
     };
 
+    // Write 8-bit input (used to trigger the DMA-reading of the framebuffer)
     auto WriteU8 = [&Handle](
             unsigned offset, unsigned char data, bool debugPrint=false)
     {
@@ -90,11 +95,14 @@ int main(int argc, char **argv)
         double inputX = -2.2 + 0.3*i;
         double inputY = 1.1;
 
+        // Send the window coordinates
+        // top-left x,y, and stepx,stepy
         WriteDouble(inputX, 0x2060);
         WriteDouble(inputY, 0x2064);
         WriteDouble(3.3/WIDTH, 0x2068);
         WriteDouble(2.2/HEIGHT, 0x206C);
 
+        // Wait until the FPGA reports all scanlines computed
         struct timeval Start;
         unsigned output = 1, oldOutput = 0xFFFFFFFF;
         printf("[-] Remaining scanlines:         ");
@@ -113,6 +121,7 @@ int main(int argc, char **argv)
         gettimeofday(&End, NULL);
         printf("\b\b\b\b\b\b\b%03d/%u", 0, HEIGHT);
 
+        // Helper function used to report time taken to execute.
         auto timeTakenInMS = [&Start, &End]() {
             unsigned long long uSecStart =
                 (unsigned long long)Start.tv_sec*1000000ull +
@@ -124,11 +133,7 @@ int main(int argc, char **argv)
         };
         printf("\n[-] Frame computed (took %lld ms)\n", timeTakenInMS());
 
-        // output = ReadNBytes(0x2000, 4, false);
-        // cout << "input_x: " << to_double(output) << "\n\n";
-        // auto debug1 = [&ReadNBytes]() { printf("debug1: 0x%08x\n", ReadNBytes(0x2000, 4)); };
-        // auto debug2 = [&ReadNBytes]() { printf("debug2: 0x%08x\n", ReadNBytes(0x2004, 4)); };
-
+        // Get the frame data
         puts("[-] Dumping frame over USB...");
         void *Buffer = malloc(WIDTH*HEIGHT);
         WriteU8(0x2080, 1);

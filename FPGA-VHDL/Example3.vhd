@@ -230,14 +230,14 @@ architecture arch of Example3 is
     signal startComputing : std_logic := '0';
 
     -- The size of the window (in pixels) that we are computing
-    constant spanx : integer := 640;
-    constant spany : integer := 480;
+    constant span_x : integer := 640;
+    constant span_y : integer := 480;
 
     -- The two loop counters - outer (Y)
-    signal RowsToCompute : natural range 0 to spany;
+    signal RowsToCompute : natural range 0 to span_y;
 
     -- ...and inner (X)
-    signal PixelsToCompute : natural range 0 to spanx;
+    signal PixelsToCompute : natural range 0 to span_x;
 
     -- When we finish computing a color, we write it in this address in SRAM.
     signal AddressInSRAMtoWriteTheNextPixelTo : unsigned(22 downto 0);
@@ -315,35 +315,39 @@ begin
                     when X"2060" => input_x(7 downto 0) <= DataIn;
                     when X"2061" => input_x(15 downto 8) <= DataIn;
                     when X"2062" => input_x(23 downto 16) <= DataIn;
-                    when X"2063" => input_x(31 downto 24) <= DataIn;
-                                    debug2 <= X"11111111";
+                    when X"2063" =>
+                        input_x(31 downto 24) <= DataIn;
+                        debug2 <= X"11111111";
 
                     -- Top-left Y coordinate (in fixed-point)
                     when X"2064" => input_y(7 downto 0) <= DataIn;
                     when X"2065" => input_y(15 downto 8) <= DataIn;
                     when X"2066" => input_y(23 downto 16) <= DataIn;
-                    when X"2067" => input_y(31 downto 24) <= DataIn;
-                                    debug2 <= X"22222222";
+                    when X"2067" =>
+                        input_y(31 downto 24) <= DataIn;
+                        debug2 <= X"22222222";
 
                     -- Step in X-axis (in fixed-point)
                     when X"2068" => dinput_x(7 downto 0) <= DataIn;
                     when X"2069" => dinput_x(15 downto 8) <= DataIn;
                     when X"206A" => dinput_x(23 downto 16) <= DataIn;
-                    when X"206B" => dinput_x(31 downto 24) <= DataIn;
-                                    debug2 <= X"33333333";
+                    when X"206B" =>
+                        dinput_x(31 downto 24) <= DataIn;
+                        debug2 <= X"33333333";
 
                     -- Step in Y-axis (in fixed-point)
                     when X"206C" => dinput_y(7 downto 0) <= DataIn;
                     when X"206D" => dinput_y(15 downto 8) <= DataIn;
                     when X"206E" => dinput_y(23 downto 16) <= DataIn;
-                    when X"206F" => dinput_y(31 downto 24) <= DataIn;
+                    when X"206F" =>
+                        dinput_y(31 downto 24) <= DataIn;
                         debug2 <= X"44444444";
-                        RowsToCompute <= spany;
+                        RowsToCompute <= span_y;
                         AddressInSRAMtoWriteTheNextPixelTo <= (others => '0');
                         startComputing <= '1';
 
                     when X"2080" => ReadingActive <= '1';
-                                    ReadCount <= spanx*spany;
+                                    ReadCount <= span_x*span_y;
                                     SRAMAddr <= (others => '0');
 
                     when others =>
@@ -353,35 +357,52 @@ begin
 
             case state is
                 when receiving_input =>
-                    debug2 <= X"22222222";
                     if startComputing = '1' then
+                        -- we received all inputs.
+                        -- Before starting, maintain a copy of the left X
+                        -- since we need to revert back to it
+                        -- everytime we start work on a new scanline.
                         input_x_orig <= input_x;
                         state <= drawRows;
                     end if;
 
                 when drawRows =>
+                    -- Did we finish all rows?
                     if RowsToCompute /= 0 then
+                        -- Nope.
                         RowsToCompute <= RowsToCompute - 1;
-                        debug2 <= std_logic_vector(to_unsigned(RowsToCompute, debug2'length));
-                        PixelsToCompute <= spanx;
+                        -- Keep a running counter (so the PC can progress bar)
+                        debug2 <= std_logic_vector(
+                            to_unsigned(RowsToCompute, debug2'length));
+                        -- We will compute span_x pixels now.
+                        PixelsToCompute <= span_x;
                         state <= drawPixels;
                     else
+                        -- We're done! Go wait for the PC to read this.
                         state <= waitForDMAtoPC;
                         SRAMAddr <= (others => '0');
                     end if;
 
                 when drawPixels =>
+                    -- Did we finish all pixels?
                     if PixelsToCompute /= 0 then
+                        -- Nope.
                         PixelsToCompute <= PixelsToCompute - 1;
+                        -- Keep a running counter (so the PC can progress bar)
                         debug1 <= std_logic_vector(
                             to_unsigned(PixelsToCompute, debug1'length));
+                        -- Signal the tiny engine to go compute
+                        -- from the current values of (input_x,input_y)
                         startMandelEngine <= '1';
                         state <= waitForMandelbrot;
                     else
+                        -- Yes! Time to move to next scanline.
+                        -- Revert to the leftmost X co-ordinate...
                         input_x <= input_x_orig;
-                        -- Go down by one step
+                        -- ...and go down by one step.
                         input_y <= std_logic_vector(
                             unsigned(input_y) - unsigned(dinput_y));
+                        -- Now loop again!
                         state <= drawRows;
                     end if;
 
@@ -389,32 +410,42 @@ begin
                     if mandelEngineFinished = '0' then
                         state <= waitForMandelbrot;
                     else
+                        -- The Mandelbrot engine computed the color
+                        -- Prepare to write it to SRAM:
                         SRAMDataOut <= "0000000000" & OutputNumber;
-                        -- Go right by one step
+                        -- Go right one step, to prepare for next pixel
                         input_x <= std_logic_vector(
                             unsigned(input_x) + unsigned(dinput_x));
+                        -- Setup target address in SRAM
                         SRAMAddr <= std_logic_vector(
                             AddressInSRAMtoWriteTheNextPixelTo);
                         AddressInSRAMtoWriteTheNextPixelTo <=
                             AddressInSRAMtoWriteTheNextPixelTo + 1;
+                        -- But you can't write yet - wait for next cycle
+                        -- till address and databus stabilize.
                         state <= drawPixelsWaitForWrite;
                     end if;
 
                 when drawPixelsWaitForWrite =>
+                    -- Write pulse!
                     SRAMWE <= '1';
+                    -- ...and continue with next pixel.
                     state <= drawPixels;
 
                 when waitForDMAtoPC =>
-                    debug2 <= X"99999999";
+                    debug2 <= X"55555555";
+                    -- Did the PC ask for the new framebuffer data?
                     if ReadingActive = '1' then
+                        -- It did - time to DMA.
                         state <= DMAing;
                     else
                         state <= waitForDMAtoPC;
                     end if;
 
                 when DMAing =>
-                    debug2 <= std_logic_vector(to_unsigned(ReadCount, debug2'length));
+                    -- Are we done?
                     if ReadCount /= 0 then
+                        -- No - read one more pixel color
                         SRAMRE <= '1';
                         state <= DMAwaitingSRAM;
                     else
@@ -423,6 +454,8 @@ begin
 
                 when DMAwaitingSRAM =>
                     if SRAMValid = '1' then
+                        -- Save the color - we need to read one more,
+                        -- since the USB bus is 16 bit.
                         USB_DataOutStaging <= SRAMDataIn(7 downto 0);
                         ReadCount <= ReadCount - 1;
                         SRAMAddr <= std_logic_vector(unsigned(SRAMAddr) + 1);
@@ -437,9 +470,14 @@ begin
 
                 when DMAwaitingSRAM3 =>
                     if SRAMValid = '1' then
-                        USB_DataOut <= SRAMDataIn(7 downto 0) & USB_DataOutStaging;
+                        -- We've read both pixels - write the 16-bit value.
+                        -- (8 bits for each pixel)
+                        USB_DataOut <=
+                            SRAMDataIn(7 downto 0) & USB_DataOutStaging;
                         ReadCount <= ReadCount - 1;
+                        -- Move along, to prepare for next two pixels
                         SRAMAddr <= std_logic_vector(unsigned(SRAMAddr) + 1);
+                        -- ...and go wait for USB bus to say it is ready.
                         state <= DMAwaitingForUSB;
                     else
                         state <= DMAwaitingSRAM2;

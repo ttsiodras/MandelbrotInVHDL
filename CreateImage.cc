@@ -101,7 +101,7 @@ int main(int argc, char **argv)
         gettimeofday(&Start, NULL);
         while(1) {
             output = ReadNBytes(0x2004, 4);
-            if (output == 0x99999999)
+            if (output == 0x55555555)
                 break;
             if (oldOutput > output) {
                 oldOutput = output;

@@ -222,11 +222,13 @@ architecture arch of Example3 is
     );
     signal state : state_type;
 
-    -- Inner logic
+    -- When debugging what is happening, these store additional info.
     signal debug1 : std_logic_vector(31 downto 0);
     signal debug2 : std_logic_vector(31 downto 0);
 
+    -- Flag signalling we received all inputs and should start processing.
     signal startComputing : std_logic := '0';
+
     signal RowsToCompute : natural range 0 to 1023;
     signal PixelsToCompute : natural range 0 to 1023;
     signal PixelAddrInSRAM : unsigned(22 downto 0);
@@ -241,10 +243,6 @@ architecture arch of Example3 is
     signal startMandelEngine    : std_logic;
     signal OutputNumber         : std_logic_vector(7 downto 0);
     signal mandelEngineFinished : std_logic;
-
-    -- Debugging USB transfers
-    signal Ramp : unsigned(15 downto 0);
-    signal RampError : std_logic;
 
     signal USB_DataOutStaging : std_logic_vector(7 downto 0);
 begin
@@ -288,12 +286,14 @@ begin
                 -- He is! What address is he writing in?
                 case Addr is
 
+                    -- Ah. He is giving the X coordinate.
                     when X"2060" => input_x(7 downto 0) <= DataIn;
                     when X"2061" => input_x(15 downto 8) <= DataIn;
                     when X"2062" => input_x(23 downto 16) <= DataIn;
                     when X"2063" => input_x(31 downto 24) <= DataIn;
                                     debug2 <= X"AAAAAAAA";
 
+                    -- Ah. He is giving the Y coordinate.
                     when X"2064" => input_y(7 downto 0) <= DataIn;
                     when X"2065" => input_y(15 downto 8) <= DataIn;
                     when X"2066" => input_y(23 downto 16) <= DataIn;
@@ -437,23 +437,6 @@ begin
             when others => DataOut <= X"AA";
         end case;
     end process;
-
-    -- Always receive data from the host
-    process (RST, CLK)
-    begin
-        if (RST='1') then
-            RampError <= '0';
-            Ramp <= X"0000";
-        elsif (CLK'event and CLK='1') then
-            if (USB_DataInWE='1') then -- the moment we receive the first USB write, start simulating RX back!
-                if (unsigned(USB_DataIn)/=Ramp) then
-                    RampError <= '1';
-                end if;
-                Ramp <= Ramp + 1;
-            end if;
-        end if;
-    end process;
-    LEDs(0) <= not RampError;
 
     -- Instantiate components
 

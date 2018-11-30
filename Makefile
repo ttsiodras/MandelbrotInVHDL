@@ -22,4 +22,4 @@ test:	${TARGET} ${BITFILE}
 	@sudo ./${TARGET} && feh mandel.pgm
 
 clean:
-	rm -f ${TARGET} ${OBJS}
+	rm -f ${TARGET} ${OBJS} mandel.pgm

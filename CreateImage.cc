@@ -92,6 +92,8 @@ int main(int argc, char **argv)
 
         WriteDouble(inputX, 0x2060);
         WriteDouble(inputY, 0x2064);
+        WriteDouble(3.3/WIDTH, 0x2068);
+        WriteDouble(2.2/HEIGHT, 0x206C);
 
         struct timeval Start;
         unsigned output = 1, oldOutput = 0xFFFFFFFF;

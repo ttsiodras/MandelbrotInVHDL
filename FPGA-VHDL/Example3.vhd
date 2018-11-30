@@ -239,30 +239,35 @@ architecture arch of Example3 is
     -- ...and inner (X)
     signal PixelsToCompute : natural range 0 to spanx;
 
+    -- When we finish computing a color, we write it in this address in SRAM.
+    signal AddressInSRAMtoWriteTheNextPixelTo : unsigned(22 downto 0);
 
-    signal PixelAddrInSRAM : unsigned(22 downto 0);
-
-    -- Data back to PC...
-    signal ReadCount : natural;
+    -- Flag indicating the PC asked to read the framebuffer
     signal ReadingActive : std_logic := '0';
+
+    -- SendingData back to PC - how many pixels are left?
+    signal ReadCount : natural;
 
     -- Signals used to interface with Mandelbrot engine
     signal input_x, input_y     : std_logic_vector(31 downto 0);
+    signal dinput_x, dinput_y   : std_logic_vector(31 downto 0);
     signal input_x_orig         : std_logic_vector(31 downto 0);
     signal startMandelEngine    : std_logic;
     signal OutputNumber         : std_logic_vector(7 downto 0);
     signal mandelEngineFinished : std_logic;
 
+    -- Since we deliver two 8-bit pixel colors in one 16-bit USB transaction,
+    -- we need a "staging" place to store the 1st value read from SRAM
+    -- before we go ahead and read the 2nd.
     signal USB_DataOutStaging : std_logic_vector(7 downto 0);
 begin
 
-    -- Tie unused signals
+    -- Tie unused signals.
     User_Signals <= "ZZZZZZZZ";
     LEDs(7 downto 1) <= "1111111";
     IO_CLK_N <= 'Z';
     IO_CLK_P <= 'Z';
     Interrupt <= '0';
-
     IO <= (0=>LEDs(0), 1=>LEDs(1), 41=>LEDs(2), 42=>LEDs(3), 43=>LEDs(4),
            44=>LEDs(5), 45=>LEDs(6), 46=>LEDs(7), others => 'Z');
 
@@ -271,6 +276,8 @@ begin
         if (RST='1') then
             input_x <= X"00000000";
             input_y <= X"00000000";
+            dinput_x <= X"00000000";
+            dinput_y <= X"00000000";
             state <= receiving_input;
             SRAMDataOut <= (others => '0');
             debug1 <= (others => '0');
@@ -281,6 +288,15 @@ begin
             USB_DataInBusy <= '0';
 
         elsif rising_edge(CLK) then
+
+            -- I am handling all "pulses" in a common way - the main clock
+            -- just always sets them low, but if further below they
+            -- are set high, due to the way processes work in VHDL,
+            -- they will be set high for just once in the next cycle.
+            --
+            -- This allows me to not need to introduce states to "set high",
+            -- "wait one cycle", "set low", etc.
+
             SRAMWE <= '0';
             SRAMRE <= '0';
             USB_DataInBusy <= '0';
@@ -292,25 +308,39 @@ begin
             -- Is the PC calling ZestSC1WriteRegister?
             if WE = '1' then
 
-                -- He is! What address is he writing in?
+                -- It is! What address is it writing in?
                 case Addr is
 
-                    -- Ah. He is giving the X coordinate.
+                    -- Top-left X coordinate (in fixed-point)
                     when X"2060" => input_x(7 downto 0) <= DataIn;
                     when X"2061" => input_x(15 downto 8) <= DataIn;
                     when X"2062" => input_x(23 downto 16) <= DataIn;
                     when X"2063" => input_x(31 downto 24) <= DataIn;
-                                    debug2 <= X"AAAAAAAA";
+                                    debug2 <= X"11111111";
 
-                    -- Ah. He is giving the Y coordinate.
+                    -- Top-left Y coordinate (in fixed-point)
                     when X"2064" => input_y(7 downto 0) <= DataIn;
                     when X"2065" => input_y(15 downto 8) <= DataIn;
                     when X"2066" => input_y(23 downto 16) <= DataIn;
                     when X"2067" => input_y(31 downto 24) <= DataIn;
-                                    debug2 <= X"55555555";
-                                    RowsToCompute <= spany;
-                                    PixelAddrInSRAM <= (others => '0');
-                                    startComputing <= '1';
+                                    debug2 <= X"22222222";
+
+                    -- Step in X-axis (in fixed-point)
+                    when X"2068" => dinput_x(7 downto 0) <= DataIn;
+                    when X"2069" => dinput_x(15 downto 8) <= DataIn;
+                    when X"206A" => dinput_x(23 downto 16) <= DataIn;
+                    when X"206B" => dinput_x(31 downto 24) <= DataIn;
+                                    debug2 <= X"33333333";
+
+                    -- Step in Y-axis (in fixed-point)
+                    when X"206C" => dinput_y(7 downto 0) <= DataIn;
+                    when X"206D" => dinput_y(15 downto 8) <= DataIn;
+                    when X"206E" => dinput_y(23 downto 16) <= DataIn;
+                    when X"206F" => dinput_y(31 downto 24) <= DataIn;
+                        debug2 <= X"44444444";
+                        RowsToCompute <= spany;
+                        AddressInSRAMtoWriteTheNextPixelTo <= (others => '0');
+                        startComputing <= '1';
 
                     when X"2080" => ReadingActive <= '1';
                                     ReadCount <= spanx*spany;
@@ -343,13 +373,15 @@ begin
                 when drawPixels =>
                     if PixelsToCompute /= 0 then
                         PixelsToCompute <= PixelsToCompute - 1;
-                        debug1 <= std_logic_vector(to_unsigned(PixelsToCompute, debug1'length));
+                        debug1 <= std_logic_vector(
+                            to_unsigned(PixelsToCompute, debug1'length));
                         startMandelEngine <= '1';
                         state <= waitForMandelbrot;
                     else
                         input_x <= input_x_orig;
-                        -- Go down by 2.2/480
-                        input_y <= std_logic_vector(unsigned(input_y) - 615164);
+                        -- Go down by one step
+                        input_y <= std_logic_vector(
+                            unsigned(input_y) - unsigned(dinput_y));
                         state <= drawRows;
                     end if;
 
@@ -358,10 +390,13 @@ begin
                         state <= waitForMandelbrot;
                     else
                         SRAMDataOut <= "0000000000" & OutputNumber;
-                        -- Go right by 3.3/640.0
-                        input_x <= std_logic_vector(unsigned(input_x) + 692060);
-                        SRAMAddr <= std_logic_vector(PixelAddrInSRAM);
-                        PixelAddrInSRAM <= PixelAddrInSRAM + 1;
+                        -- Go right by one step
+                        input_x <= std_logic_vector(
+                            unsigned(input_x) + unsigned(dinput_x));
+                        SRAMAddr <= std_logic_vector(
+                            AddressInSRAMtoWriteTheNextPixelTo);
+                        AddressInSRAMtoWriteTheNextPixelTo <=
+                            AddressInSRAMtoWriteTheNextPixelTo + 1;
                         state <= drawPixelsWaitForWrite;
                     end if;
 

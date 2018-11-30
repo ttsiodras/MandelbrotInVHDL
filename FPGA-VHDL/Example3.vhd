@@ -282,8 +282,10 @@ begin
             ReadingActive <= '0';
             USB_DataOutWE <= '0';
 
-            -- Was the WE signal just raised?
+            -- Is the PC calling ZestSC1WriteRegister?
             if WE = '1' then
+
+                -- He is! What address is he writing in?
                 case Addr is
 
                     when X"2060" => input_x(7 downto 0) <= DataIn;

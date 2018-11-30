@@ -80,7 +80,7 @@ int main(int argc, char **argv)
             printf("W:0x%04x: %02x\n", offset, (unsigned)data);
     };
 
-    for (int i=0; i<5; i++) {
+    for (int i=0; i<3; i++) {
         FILE *fp = fopen("mandel.pgm", "w");
         fprintf(fp, "P5\n320 240\n255\n");
 

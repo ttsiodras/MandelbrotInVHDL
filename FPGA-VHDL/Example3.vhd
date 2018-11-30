@@ -222,9 +222,6 @@ architecture arch of Example3 is
     );
     signal state : state_type;
 
-    -- Signals
-    signal WE_old : std_logic;
-
     -- Inner logic
     signal debug1 : std_logic_vector(31 downto 0);
     signal debug2 : std_logic_vector(31 downto 0);
@@ -268,7 +265,6 @@ begin
             input_x <= X"00000000";
             input_y <= X"00000000";
             state <= receiving_input;
-            WE_old <= '0';
             SRAMDataOut <= (others => '0');
             debug1 <= (others => '0');
             debug2 <= (others => '0');
@@ -278,7 +274,6 @@ begin
             USB_DataInBusy <= '0';
 
         elsif rising_edge(CLK) then
-            WE_old <= WE;
             SRAMWE <= '0';
             SRAMRE <= '0';
             USB_DataInBusy <= '0';
@@ -288,7 +283,7 @@ begin
             USB_DataOutWE <= '0';
 
             -- Was the WE signal just raised?
-            if (WE='1' and WE_old = '0') then
+            if WE = '1' then
                 case Addr is
 
                     when X"2060" => input_x(7 downto 0) <= DataIn;

@@ -6,13 +6,8 @@ translation of the algorithm, with the HW side fully implementing the
 computation of a complete frame, storing it in SRAM, and then sending it
 back to the main PC over the USB bus.
 
-<center>
-<img src="contrib/vhdlMandel_board.jpg">
-</center>
+<a href="https://www.youtube.com/watch?v=yFIbjiOWYFY">
+<img src="contrib/snapshotFromVideo.jpg" alt="Mandelbrot in VHDL - real-time zooming video">Mandelbrot in VHDL - real-time zooming video</img></a>
 
-Now I need to *actually* do HW - that is to say, pipeline this so it
-becomes 100 times faster!
-
-<center>
-<img src="contrib/vhdlMandel.jpg">
-</center>
+Now I need to find the time... to try to pipeline this - so I can get
+one pixel output per cycle.

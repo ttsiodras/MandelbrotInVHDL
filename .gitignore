@@ -78,3 +78,7 @@ example3
 CreateImage.o
 mandel.pgm
 CreateImage
+FPGA-VHDL/Example3_map.psr
+FPGA-VHDL/Example3_preroute.twr
+FPGA-VHDL/Example3_preroute.twx
+FPGA-VHDL/testFinallyWorks_isim_beh1.wdb

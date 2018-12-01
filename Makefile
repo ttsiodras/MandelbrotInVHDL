@@ -8,7 +8,7 @@ all: ${BITFILE}
 %.o:	%.cc
 	${CC} -c ${CXXFLAGS} -o $@ $<
 
-CreateImage: CreateImage.o
+CreateImage: CreateImage.o mandelVHDL.o
 	${CXX} -o $@ $^ ${LDFLAGS}
 
 Zoomer:	GUI.o mandelVHDL.o

@@ -229,8 +229,8 @@ architecture arch of Example3 is
     signal startComputing : std_logic := '0';
 
     -- The size of the window (in pixels) that we are computing
-    constant span_x : integer := 640;
-    constant span_y : integer := 480;
+    constant span_x : integer := 320;
+    constant span_y : integer := 240;
 
     -- The two loop counters - outer (Y)
     signal RowsToCompute : natural range 0 to span_y;

@@ -81,7 +81,7 @@ void mandelVHDL_init()
             Count, CardIDs[Count], SerialNumbers[Count]);
     }
     ZestSC1OpenCard(CardIDs[0], &Handle);
-    ZestSC1ConfigureFromFile(Handle, (char *)"FPGA-VHDL/Example3.bit");
+    ZestSC1ConfigureFromFile(Handle, (char *)"../FPGA-VHDL/Example3.bit");
 }
 
 void mandelVHDL(unsigned char *framebuffer, double xld, double yld, double xru, double yru)

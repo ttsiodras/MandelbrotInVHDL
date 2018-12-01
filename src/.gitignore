@@ -1,3 +1,5 @@
 GUI.o
 Zoomer
 mandelVHDL.o
+CreateImage
+CreateImage.o

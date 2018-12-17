@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 #include <sys/time.h>
 
@@ -8,7 +9,7 @@
 const unsigned WIDTH = 320;
 const unsigned HEIGHT = 240;
 
-int main()
+int main(int argc, char *argv[])
 {
     mandelVHDL_init();
     unsigned char *Buffer = (unsigned char *)malloc(WIDTH*HEIGHT);
@@ -34,11 +35,14 @@ int main()
         printf("[-] Frame computed and transferred over (took %lld ms)\n", timeTakenInMS());
     }
 
-    FILE *fp = fopen("mandel.pgm", "w");
-    fprintf(fp, "P5\n%u %u\n255\n", WIDTH, HEIGHT);
-    fwrite(Buffer, 1, WIDTH*HEIGHT, fp);
-    fclose(fp);
-    free(Buffer);
+    if (argc>1 && !strcmp(argv[1], "--dump")) {
+        FILE *fp = fopen("mandel.pgm", "w");
+        fprintf(fp, "P5\n%u %u\n255\n", WIDTH, HEIGHT);
+        fwrite(Buffer, 1, WIDTH*HEIGHT, fp);
+        fclose(fp);
+        free(Buffer);
+        printf("[-] Frame dumped to mandel.pgm.\n");
+    }
 
     puts("[-] Releasing FPGA resources...");
     mandelVHDL_shutdown();

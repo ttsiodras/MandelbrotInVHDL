@@ -1,6 +1,6 @@
-LDFLAGS = -m32 -L../../../Lib -m32 -L ../../linux/Lib/ -lZestSC1 /usr/lib32/libusb-0.1.so.4.4.4 -lSDL /usr/lib32/libSDL_gfx.so.5
+LDFLAGS = -m32 -L../../../Xilinx/ZestSC1/Lib -m32 -L ../../linux/Lib/ -lZestSC1 /usr/lib32/libusb-0.1.so.4.4.4 -lSDL /usr/lib32/libSDL_gfx.so.5
 OBJS = CreateImage.o GUI.o mandelVHDL.o
-CXXFLAGS = -g -I ../../../Inc -I /usr/include/SDL -std=c++17 -m32 -Wall -Wextra
+CXXFLAGS = -g -I ../../../Xilinx/ZestSC1/Inc/ -I /usr/include/SDL -std=c++17 -m32 -Wall -Wextra
 
 all:	CreateImage Zoomer
 

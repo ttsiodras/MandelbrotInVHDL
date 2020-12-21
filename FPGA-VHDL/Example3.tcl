@@ -38,6 +38,9 @@
 set myProject "Example3"
 set myScript "Example3.tcl"
 
+set zestSC1root "/home/ttsiod/Xilinx/KB/ZestSC1"
+set prjRoot "/home/ttsiod/Github/MandelbrotInVHDL"
+
 # 
 # Main (top-level) routines
 # 
@@ -224,6 +227,8 @@ proc set_project_props {} {
 proc add_source_files {} {
 
    global myScript
+   global zestSC1root
+   global prjRoot
 
    if { ! [ open_project ] } {
       return false
@@ -231,12 +236,12 @@ proc add_source_files {} {
 
    puts "$myScript: Adding sources to project..."
 
-   xfile add "../../../VHDL/ZestSC1.ucf"
-   xfile add "../../../VHDL/ZestSC1_Host.vhd"
-   xfile add "../../../VHDL/ZestSC1_Interfaces.vhd"
-   xfile add "../../../VHDL/ZestSC1_SRAM.vhd"
-   xfile add "../ieee_proposed/fixed_float_types_c.vhd"
-   xfile add "../ieee_proposed/fixed_pkg_c.vhd"
+   xfile add "$zestSC1root/VHDL/ZestSC1.ucf"
+   xfile add "$zestSC1root/VHDL/ZestSC1_Host.vhd"
+   xfile add "$zestSC1root/VHDL/ZestSC1_Interfaces.vhd"
+   xfile add "$zestSC1root/VHDL/ZestSC1_SRAM.vhd"
+   xfile add "$prjRoot/ieee_proposed/fixed_float_types_c.vhd"
+   xfile add "$prjRoot/ieee_proposed/fixed_pkg_c.vhd"
    xfile add "Example3.vhd"
    xfile add "Mandelbrot.vhd"
    xfile add "MyTypes.vhd"
@@ -259,6 +264,7 @@ proc add_source_files {} {
 proc create_libraries {} {
 
    global myScript
+   global prjRoot
 
    if { ! [ open_project ] } {
       return false
@@ -267,8 +273,8 @@ proc create_libraries {} {
    puts "$myScript: Creating libraries..."
 
    lib_vhdl new "ieee_proposed"
-      lib_vhdl add_file "ieee_proposed" "/home/ttsiod/Xilinx/KB/ZestSC1/Examples/MandelbrotInVHDL/ieee_proposed/fixed_float_types_c.vhd"
-      lib_vhdl add_file "ieee_proposed" "/home/ttsiod/Xilinx/KB/ZestSC1/Examples/MandelbrotInVHDL/ieee_proposed/fixed_pkg_c.vhd"
+      lib_vhdl add_file "ieee_proposed" "$prjRoot/ieee_proposed/fixed_float_types_c.vhd"
+      lib_vhdl add_file "ieee_proposed" "$prjRoot/ieee_proposed/fixed_pkg_c.vhd"
 
    # must close the project or library definitions aren't saved.
    project save

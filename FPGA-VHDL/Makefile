@@ -9,4 +9,4 @@ ${BITFILE}:	Example3.vhd MyTypes.vhd Example3.tcl
 	@grep "All constraints were met." Example3.par >/dev/null || exit 1
 
 clean:
-	rm -f ${BITFILE} $$(grep FPGA-VHDL .gitignore)
+	rm -rf ${BITFILE} $$(cat .gitignore)

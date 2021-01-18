@@ -1,0 +1,4 @@
+.built
+**/*.o
+work
+mandel_tb

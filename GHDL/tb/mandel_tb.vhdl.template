@@ -70,17 +70,11 @@ begin
       ix, iy, o : std_logic_vector(31 downto 0);
     end record;
 
-    --  The numbers to check. as computed in ../c/mandel.c
+    -- The numbers to check. as computed in ../c/mandel.c
     type pattern_array is array (natural range <>) of pattern_type;
-    constant patterns : pattern_array :=
-      ((X"f7333334", X"fc666667", X"00000001"),
-       (X"f8666667", X"fc666667", X"00000001"),
-       (X"f999999a", X"fc666667", X"00000003"),
-       (X"facccccd", X"fc666667", X"00000003"),
-       (X"fc000000", X"fc666667", X"00000003"),
-       (X"fd333334", X"fc666667", X"00000004"),
-       (X"fe666667", X"fc666667", X"00000005"),
-       (X"ff99999a", X"fc666667", X"00000018"));
+
+    -- These are automatically generated
+### ../c/tests.adb
 
     function to_hex(i : std_logic_vector(31 downto 0)) return string is
     begin

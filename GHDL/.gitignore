@@ -2,3 +2,5 @@
 **/*.o
 work
 mandel_tb
+c/tests.adb
+simulation

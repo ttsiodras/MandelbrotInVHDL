@@ -12,22 +12,31 @@ use work.custom_fixed_point_types.all;
 
 entity Mandelbrot is
     port (
-        CLK              : in std_logic;
-        RST              : in std_logic;
+        CLK               : in std_logic;
+        RST               : in std_logic;
 
         -- These are the input coordinates on the complex plane
         -- for which the computation will take place.
-        input_x, input_y : in std_logic_vector(31 downto 0);
-
+        input_x, input_y  : in std_logic_vector(31 downto 0);
+        -- And this is the screen offset where the returned
+        -- color result will be written into:
+        input_ofs         : in std_logic_vector(31 downto 0);
         -- When this is pulsed once (0->1->0) the engine "wakes up" and
-        -- starts computing the output color.
-        startWorking     : in std_logic;
+        -- starts trying to store the inputs (x,y,ofs) in the pipeline
+        new_input         : in std_logic;
+        -- as soon as it manages to do this, it pulses this:
+        new_input_ack     : out std_logic;
+        -- ...and starts processing.
 
         --  When it concludes computing, it stores the result here...
-        OutputNumber     : out std_logic_vector(7 downto 0);
-
-        -- ...and raises this ; to signal completion.
-        finishedWorking  : out std_logic
+        output_number     : out std_logic_vector(7 downto 0);
+        output_offset     : out std_logic_vector(7 downto 0);
+        -- ...so the outer circuit can take this result and plot it.
+        -- To wake it up, we pulse this, to signal completion.
+        new_output        : out std_logic
+        -- No ACK is needed, because we expect someone to be
+        -- constantly waiting for this new_output signal, and 
+        -- immediately store the output in some single-cycle buffer.
     );
 end Mandelbrot;
 

@@ -32,10 +32,7 @@ test:	compileTB
 
 waves:	compileTB
 	$(Q)mkdir -p simulation
-	$(Q)ghdl -r ${GHDL_COMPILE_OPTIONS} ${TB} ${GHDL_RUN_OPTIONS} --vcdgz=simulation/mandel.vcd.gz || { \
-	    echo "[GHDL] Failure. Aborting..." ; \
-	    exit 1 ; \
-       	}
+	$(Q)ghdl -r ${GHDL_COMPILE_OPTIONS} ${TB} ${GHDL_RUN_OPTIONS} --vcdgz=simulation/mandel.vcd.gz || exit 0
 	$(Q)zcat simulation/mandel.vcd.gz | gtkwave --vcd
 
 CLEAN+=${AUTOGEN} ${TB} simulation/ .builtTB

@@ -1,11 +1,12 @@
 .PHONY:	all compile test waves clean
 
 include setup.mk
+include config.mk
 
-all:	compile  # in ghdl.mk
+all:	compile
 
 include c/c.mk
-include src/ghdl.mk
+include src/src.mk
 include tb/tb.mk
 
 clean:

@@ -52,10 +52,10 @@ int main()
     for(red = -2.2; red<0; red+=0.05) {
         re = FLOAT2FIXED(red);
         im = FLOAT2FIXED(-0.9);
-        printf("      (X\"%08x\", X\"%08x\", X\"%08x\"),\n", re, im, mandel(re, im));
+        printf("      (X\"%08x\", X\"%08x\", X\"%02x\"),\n", re, im, mandel(re, im));
     }
     red = 0;
     re = FLOAT2FIXED(red);
     im = FLOAT2FIXED(-0.9);
-    printf("      (X\"%08x\", X\"%08x\", X\"%08x\")\n);\n", re, im, mandel(re, im));
+    printf("      (X\"%08x\", X\"%08x\", X\"%02x\")\n);\n", re, im, mandel(re, im));
 }

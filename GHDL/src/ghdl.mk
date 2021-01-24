@@ -1,9 +1,10 @@
 export GHDL_BACKEND=llvm
 
 TB:=mandel_tb
-SRC:=                            \
-    ${ROOT_DIR}src/mytypes.vhdl  \
-    ${ROOT_DIR}src/mandel.vhdl   \
+SRC:=                                            \
+    ${ROOT_DIR}src/custom_fixed_point_types.vhdl \
+    ${ROOT_DIR}src/mandelbrot.vhdl               \
+    ${ROOT_DIR}tb/test_data.vhdl                 \
     ${ROOT_DIR}tb/mandel_tb.vhdl
 
 GHDL_COMPILE_OPTIONS=--ieee=synopsys --workdir=work --std=08

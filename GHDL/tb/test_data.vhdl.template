@@ -1,0 +1,38 @@
+library std;
+use std.textio.all;
+
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+
+package test_data is
+
+    type pattern_type is record
+      ix, iy : std_logic_vector(31 downto 0);
+      o : std_ulogic_vector(7 downto 0);
+    end record;
+
+    -- The numbers to check. as computed in ../c/mandel.c
+    type pattern_array is array (natural range <>) of pattern_type;
+
+    -- These are automatically generated
+### ../c/tests.adb
+
+    -- Helper functions in the testbench
+    function to_hex(i : std_logic_vector) return string;
+    function to_hex(i : unsigned) return string;
+end test_data;
+
+package body test_data is
+
+    function to_hex(i : std_logic_vector) return string is
+    begin
+      return "0x" & to_hstring(i);
+    end;
+
+    function to_hex(i : unsigned) return string is
+    begin
+      return "0x" & to_hstring(i);
+    end;
+
+end package body;

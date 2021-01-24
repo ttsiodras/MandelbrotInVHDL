@@ -8,36 +8,37 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 use ieee.std_logic_unsigned.all;
 use ieee.fixed_pkg.all;
-use work.custom_fixed_point_types.all;
+-- use work.custom_fixed_point_types.all;
+use work.pipeline_types.all;
 
 entity Mandelbrot is
-    port (
-        CLK               : in std_logic;
-        RST               : in std_logic;
+  port (
+    CLK               : in std_logic;
+    RST               : in std_logic;
 
-        -- These are the input coordinates on the complex plane
-        -- for which the computation will take place.
-        input_x, input_y  : in std_logic_vector(31 downto 0);
-        -- And this is the screen offset where the returned
-        -- color result will be written into:
-        input_offset      : in unsigned(31 downto 0);
-        -- When this is pulsed once (0->1->0) the engine "wakes up" and
-        -- starts trying to store the inputs (x,y,ofs) in the pipeline
-        new_input_arrived : in std_logic;
-        -- as soon as it manages to do this, it pulses this:
-        new_input_ack     : out std_logic;
-        -- ...and starts processing.
+    -- These are the input coordinates on the complex plane
+    -- for which the computation will take place.
+    input_x, input_y  : in std_logic_vector(31 downto 0);
+    -- And this is the screen offset where the returned
+    -- color result will be written into:
+    input_offset      : in unsigned(31 downto 0);
+    -- When this is pulsed once (0->1->0) the engine "wakes up" and
+    -- starts trying to store the inputs (x,y,ofs) in the pipeline
+    new_input_arrived : in std_logic;
+    -- as soon as it manages to do this, it pulses this:
+    new_input_ack     : out std_logic;
+    -- ...and starts processing.
 
-        --  When it concludes computing, it stores the result here...
-        output_number     : out std_logic_vector(7 downto 0);
-        output_offset     : out unsigned(31 downto 0);
-        -- ...so the outer circuit can take this result and plot it.
-        -- To wake it up, we pulse this, to signal completion.
-        new_output_made   : out std_logic
-        -- No ACK is needed, because we expect someone to be
-        -- constantly waiting for this new_output signal, and 
-        -- immediately store the output in some single-cycle buffer.
-    );
+    --  When it concludes computing, it stores the result here...
+    output_number     : out std_logic_vector(7 downto 0);
+    output_offset     : out unsigned(31 downto 0);
+    -- ...so the outer circuit can take this result and plot it.
+    -- To wake it up, we pulse this, to signal completion.
+    new_output_made   : out std_logic
+    -- No ACK is needed, because we expect someone to be
+    -- constantly waiting for this new_output signal, and 
+    -- immediately store the output in some single-cycle buffer.
+  );
 end Mandelbrot;
 
 
@@ -55,22 +56,27 @@ architecture arch of Mandelbrot is
 --     signal state : state_type;
 -- 
 --     -- the local variables needed for the algorithm
---     signal input_x_sfixed, input_y_sfixed : custom_fixed_point_type;
+     signal inputs_x, inputs_y : coord_array_type(depth-1 downto 0);
 --     signal x_mandel, y_mandel : custom_fixed_point_type;
 --     signal x_mandel_sq, y_mandel_sq : custom_fixed_point_type;
 --     signal x_mandel_times_y_mandel, magnitude : custom_fixed_point_type;
 --     signal pixel_color : unsigned(7 downto 0);
 begin
 
-    process (RST, CLK)
-    begin
-        if (RST='1') then
-            new_input_ack <= '0';
-            output_number <= X"00";
-            output_offset <= X"00000000";
-            new_output_made <= '0';
- 
---         elsif rising_edge(CLK) then
+  process (RST, CLK)
+  begin
+    if (RST='1') then
+      new_input_ack <= '0';
+      output_number <= X"00";
+      output_offset <= X"00000000";
+      new_output_made <= '0';
+
+    elsif rising_edge(CLK) then
+      new_input_ack <= '0';
+      if new_input_arrived = '1' then
+        inputs_x <= input_x & inputs_x(depth-1 downto 1);
+        new_input_ack <= '1';
+      end if;
 -- 
 --             case state is
 --                 when receiving_input =>

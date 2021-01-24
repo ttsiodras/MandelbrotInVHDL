@@ -104,9 +104,10 @@ begin
         assert timeout < 100
           report "timed-out waiting for input handshake" severity failure;
       end loop;
+      new_input_arrived <= '0';
       wait for cycle_period;
       assert new_input_ack = '0'
-        report "bad new_input_ack handshake" severity error;
+        report "bad new_input_ack handshake" severity failure;
     end loop;
   end process;
 
@@ -114,24 +115,30 @@ begin
   process
     variable l : line;
     variable idx : integer;
+    variable timeout : integer := 0;
     variable total_received : integer := 0;
   begin
-     loop
-       wait until new_output_made = '1';
-       write(l, string'("Output for offset:"));
-       write(l, to_hex(output_offset));
-       write(l, string'(" was:"));
-       write(l, to_hex(output_number));
-       writeline(OUTPUT, l);
-       write(l, string'("Was expecting:"));
-       idx := to_integer(output_offset);
-       write(l, to_hex(patterns(idx).o));
-       writeline(OUTPUT, l);
-       --  Check the outputs.
-       assert output_number = patterns(idx).o
-         report "bad mandelbrot result value" severity error;
-       exit when total_received = patterns'length;
-     end loop;
+    loop
+      loop
+        timeout := timeout + 1;
+        assert timeout < 10000
+          report "timed-out waiting for output" severity failure;
+        exit when new_output_made = '1';
+      end loop;
+      write(l, string'("Output for offset:"));
+      write(l, to_hex(output_offset));
+      write(l, string'(" was:"));
+      write(l, to_hex(output_number));
+      writeline(OUTPUT, l);
+      write(l, string'("Was expecting:"));
+      idx := to_integer(output_offset);
+      write(l, to_hex(patterns(idx).o));
+      writeline(OUTPUT, l);
+      --  Check the outputs.
+      assert output_number = patterns(idx).o
+        report "bad mandelbrot result value" severity error;
+      exit when total_received = patterns'length;
+    end loop;
 
     -- assert false report "end of test" severity note;
     --  Wait forever; this will finish the simulation.

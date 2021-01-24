@@ -30,7 +30,7 @@ test:	compileTB
 	$(Q)echo "[GHDL] All tests passed."
 	$(Q)echo "[-] To do GTKWAVE plotting, \"make waves\""
 
-waves:	compile
+waves:	compileTB
 	$(Q)mkdir -p simulation
 	$(Q)ghdl -r ${GHDL_COMPILE_OPTIONS} ${TB} ${GHDL_RUN_OPTIONS} --vcdgz=simulation/mandel.vcd.gz || { \
 	    echo "[GHDL] Failure. Aborting..." ; \

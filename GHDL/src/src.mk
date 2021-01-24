@@ -1,7 +1,8 @@
 export GHDL_BACKEND=llvm
 
-SRC=                                            \
+SRC=\
     ${ROOT_DIR}src/custom_fixed_point_types.vhdl \
+    ${ROOT_DIR}src/pipeline_types.vhdl \
     ${ROOT_DIR}src/mandelbrot.vhdl
 
 compile:	.built

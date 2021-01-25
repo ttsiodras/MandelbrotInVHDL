@@ -35,7 +35,7 @@ architecture behav of mandel_tb is
       -- ...and starts processing.
 
       --  When it concludes computing, it stores the result here...
-      output_number     : out std_logic_vector(7 downto 0);
+      output_number     : out unsigned(7 downto 0);
       output_offset     : out unsigned(31 downto 0);
       -- ...so the outer circuit can take this result and plot it.
       -- To wake it up, we pulse this, to signal completion.
@@ -51,13 +51,13 @@ architecture behav of mandel_tb is
   constant half_period : time  := 10 ns;
   constant cycle_period : time  := 20 ns;
 
-  signal clk : std_logic := '0'; -- make sure you initialise!
+  signal clk : std_logic := '1'; -- make sure you initialise!
   signal rst : std_logic := '1'; -- make sure you initialise!
-  signal input_x, input_y : std_logic_vector(31 downto 0);
-  signal input_offset : unsigned(31 downto 0);
+  signal input_x, input_y : std_logic_vector(31 downto 0) := (others => '0');
+  signal input_offset : unsigned(31 downto 0) := (others => '0');
   signal new_input_arrived : std_logic := '0';
   signal new_input_ack : std_logic;
-  signal output_number : std_logic_vector(7 downto 0);
+  signal output_number : unsigned(7 downto 0);
   signal output_offset : unsigned(31 downto 0);
   signal new_output_made : std_logic := '0';
 
@@ -95,49 +95,75 @@ begin
       input_x <= patterns(i).ix;
       input_y <= patterns(i).iy;
       input_offset <= to_unsigned(i, input_offset);
-      timeout := 0;
+      wait for cycle_period;
+      write(l, string'("InputX for offset:"));
+      write(l, to_hex(input_offset));
+      write(l, string'(" :"));
+      write(l, to_hex(input_x));
+      writeline(OUTPUT, l);
       new_input_arrived <= '1';
+      timeout := 0;
       loop
+        timeout := timeout + 1;
+        assert timeout < 10000
+          report "timed-out waiting for input handshake" severity failure;
         exit when new_input_ack = '1';
         wait for cycle_period;
-        timeout := timeout + 1;
-        assert timeout < 100
-          report "timed-out waiting for input handshake" severity failure;
       end loop;
       new_input_arrived <= '0';
-      wait for cycle_period;
-      assert new_input_ack = '0'
-        report "bad new_input_ack handshake" severity failure;
     end loop;
+    --  Wait forever; this will finish the simulation.
+    wait;
   end process;
 
   --  This process checks the outputs generated from MandelBrot
   process
     variable l : line;
     variable idx : integer;
+    variable expected_value : integer;
+    variable received_value : integer;
     variable timeout : integer := 0;
     variable total_received : integer := 0;
   begin
     loop
       loop
         timeout := timeout + 1;
+        wait for cycle_period;
         assert timeout < 10000
           report "timed-out waiting for output" severity failure;
         exit when new_output_made = '1';
       end loop;
+      received_value := to_integer(output_number);
+
       write(l, string'("Output for offset:"));
       write(l, to_hex(output_offset));
       write(l, string'(" was:"));
-      write(l, to_hex(output_number));
+      write(l, received_value);
       writeline(OUTPUT, l);
-      write(l, string'("Was expecting:"));
+
       idx := to_integer(output_offset);
-      write(l, to_hex(patterns(idx).o));
+      expected_value := patterns(idx).o;
+      write(l, string'("For index "));
+      write(l, idx);
+      write(l, string'(" I was expecting:"));
+      write(l, expected_value);
       writeline(OUTPUT, l);
+
+      total_received := total_received + 1;
+      write(l, string'("Received "));
+      write(l, total_received);
+      write(l, string'(" / "));
+      write(l, patterns'length);
+      writeline(OUTPUT, l);
+
       --  Check the outputs.
-      assert output_number = patterns(idx).o
-        report "bad mandelbrot result value" severity error;
-      exit when total_received = patterns'length;
+      assert received_value = expected_value
+        report "bad mandelbrot result value" severity failure;
+
+      if total_received = patterns'length then
+        assert false report "Successful end of test" severity note;
+        exit;
+      end if;
     end loop;
 
     -- assert false report "end of test" severity note;

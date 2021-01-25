@@ -9,7 +9,7 @@ package test_data is
 
     type pattern_type is record
       ix, iy : std_logic_vector(31 downto 0);
-      o : std_ulogic_vector(7 downto 0);
+      o : integer;
     end record;
 
     -- The numbers to check. as computed in ../c/mandel.c

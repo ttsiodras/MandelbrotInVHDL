@@ -7,6 +7,6 @@ ${GENEXE}:	${ROOT_DIR}c/mandel.c ${ROOT_DIR}c/c.mk
 
 ${MANDEL_RESULTS}:	${GENEXE}
 	@echo "[MANDELBROT SAMPLES] Generating into $@ ..."
-	$(Q)${GENEXE} > $@
+	$(Q)${GENEXE} > $@ 2>/dev/null
 
 CLEAN+=${GENEXE} ${MANDEL_RESULTS}

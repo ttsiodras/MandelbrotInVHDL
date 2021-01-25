@@ -23,9 +23,14 @@ compileTB:	.builtTB
 	@touch $@
 
 test:	compileTB
+	@rm -f ${ROOT_DIR}received_results.txt
 	@echo "[GHDL] Running ${TB} unit..."
 	$(Q)ghdl -r ${GHDL_COMPILE_OPTIONS} ${TB} ${GHDL_RUN_OPTIONS} || { \
 	    echo "[x] Failure. Aborting..." ; \
+	    exit 1 ; \
+	}
+	$(Q)grep '45 / 45' ${ROOT_DIR}received_results.txt >/dev/null || { \
+	    echo "[x] Failure. Didn't receive all 45 test results..." ; \
 	    exit 1 ; \
 	}
 	$(Q)echo "[GHDL] All tests passed."
@@ -36,4 +41,4 @@ waves:	compileTB
 	$(Q)ghdl -r ${GHDL_COMPILE_OPTIONS} ${TB} ${GHDL_RUN_OPTIONS} --vcdgz=simulation/mandel.vcd.gz || exit 0
 	$(Q)test -f simulation/mandel.vcd.gz && ( zcat simulation/mandel.vcd.gz | gtkwave --vcd )
 
-CLEAN+=${AUTOGEN} ${TB} simulation/ .builtTB
+CLEAN+=${AUTOGEN} ${TB} ${ROOT_DIR}simulation/ ${ROOT_DIR}.builtTB ${ROOT_DIR}received_results.txt

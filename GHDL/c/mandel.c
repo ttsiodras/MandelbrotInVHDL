@@ -13,7 +13,7 @@
 #define ITERATIONS 240
 
 // Precompute outside loops
-const int32_t FOUR = FLOAT2FIXED(4.0);
+const uint32_t FOUR = FLOAT2FIXED(4.0);
 
 uint32_t mandel(int32_t re, int32_t im)
 {
@@ -60,11 +60,11 @@ int main()
     printf("    constant patterns : pattern_array := (\n");
     for(red = -2.2; red<0; red+=0.05) {
         re = FLOAT2FIXED(red);
-        im = FLOAT2FIXED(-0.9);
+        im = FLOAT2FIXED(-0.5);
         printf("      (X\"%08x\", X\"%08x\", %d),\n", re, im, mandel(re, im));
     }
     red = 0;
     re = FLOAT2FIXED(red);
-    im = FLOAT2FIXED(-0.9);
+    im = FLOAT2FIXED(-0.5);
     printf("      (X\"%08x\", X\"%08x\", %d)\n);\n", re, im, mandel(re, im));
 }

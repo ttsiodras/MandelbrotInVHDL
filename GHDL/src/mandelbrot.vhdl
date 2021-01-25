@@ -401,20 +401,20 @@ begin
       XYpXY_reg <= resize(scalb(XY_reg, 1), XYpXY_reg);
 
       -- Debugging the computations.
-      if is_used_slot(2) = '1' then
-        write(l, string'("[-] XX_reg:"));
-        write(l, to_hex(to_slv(XX_reg)));
-        write(l, string'(" YY_reg:"));
-        write(l, to_hex(to_slv(YY_reg)));
-        write(l, string'(" => XXpYY_reg:"));
-        write(l, to_hex(to_slv(XX_reg + YY_reg)));
-        write(l, string'(" ("));
-        -- we know that at this phase,
-        -- the corresponding input is at slot 2
-        write(l, to_hex(to_slv(Xc_pipe_reg(2))));
-        write(l, string'(")"));
-        writeline(OUTPUT, l);
-      end if;
+      -- if is_used_slot(2) = '1' then
+      --   write(l, string'("[-] XX_reg:"));
+      --   write(l, to_hex(to_slv(XX_reg)));
+      --   write(l, string'(" YY_reg:"));
+      --   write(l, to_hex(to_slv(YY_reg)));
+      --   write(l, string'(" => XXpYY_reg:"));
+      --   write(l, to_hex(to_slv(XX_reg + YY_reg)));
+      --   write(l, string'(" ("));
+      --   -- we know that at this phase,
+      --   -- the corresponding input is at slot 2
+      --   write(l, to_hex(to_slv(Xc_pipe_reg(2))));
+      --   write(l, string'(")"));
+      --   writeline(OUTPUT, l);
+      -- end if;
     end if;
   end process;
 
@@ -449,9 +449,21 @@ begin
           overflow <= '1';
           -- Debugging the overflows
           writeline(OUTPUT, l);
-          write(l, string'("[!] Detected overflow! "));
+          write(l, string'("[!] Detected overflow via 4.0! "));
           write(l, string'("XXpYY_reg: "));
           write(l, to_hex(to_slv(XXpYY_reg)));
+          write(l, string'(" for X:"));
+          write(l, to_hex(to_slv(Xc_pipe_reg(3))));
+          writeline(OUTPUT, l);
+        elsif iter_pipe_reg(3) > 239 then
+          overflow <= '1';
+          -- Debugging the overflows
+          writeline(OUTPUT, l);
+          write(l, string'("[!] Detected overflow via 240! "));
+          write(l, string'("XXpYY_reg: "));
+          write(l, to_hex(to_slv(XXpYY_reg)));
+          write(l, string'(" for X:"));
+          write(l, to_hex(to_slv(Xc_pipe_reg(3))));
           writeline(OUTPUT, l);
         end if;
       end if;

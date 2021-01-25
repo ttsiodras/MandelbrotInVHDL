@@ -3,4 +3,4 @@ GHDL_COMPILE_OPTIONS=--ieee=synopsys --workdir=work --std=08 \
 	-Wvital-generic -Wdelayed-checks -Wbody -Wspecs \
 	-Wunused
 
-GHDL_RUN_OPTIONS=--stop-time=50us
+GHDL_RUN_OPTIONS=--stop-time=250us

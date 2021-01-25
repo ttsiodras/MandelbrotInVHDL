@@ -60,6 +60,8 @@ architecture behav of mandel_tb is
   signal output_number : unsigned(7 downto 0);
   signal output_offset : unsigned(31 downto 0);
   signal new_output_made : std_logic := '0';
+  
+  file results_file : text;
 
 begin
   clk <= not clk after half_period;
@@ -129,7 +131,7 @@ begin
       loop
         timeout := timeout + 1;
         wait for cycle_period;
-        assert timeout < 10000
+        assert timeout < 50000
           report "timed-out waiting for output" severity failure;
         exit when new_output_made = '1';
       end loop;
@@ -150,11 +152,23 @@ begin
       writeline(OUTPUT, l);
 
       total_received := total_received + 1;
-      write(l, string'("[TB] Received test result: "));
+      write(l, string'("[TB] Received test result of "));
+      write(l, received_value);
+      write(l, string'(", passing test "));
       write(l, total_received);
       write(l, string'(" / "));
       write(l, patterns'length);
       writeline(OUTPUT, l);
+
+      file_open(results_file, "received_results.txt", APPEND_MODE);
+      write(l, string'("[TB] Received test result of "));
+      write(l, received_value);
+      write(l, string'(", passing test "));
+      write(l, total_received);
+      write(l, string'(" / "));
+      write(l, patterns'length);
+      writeline(results_file, l);
+      file_close(results_file);
 
       --  Check the outputs.
       assert received_value = expected_value

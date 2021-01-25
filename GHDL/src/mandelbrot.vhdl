@@ -47,7 +47,7 @@ end Mandelbrot;
 
 architecture arch of Mandelbrot is
 
-  -- Quick reminder, the algorithm is this:
+  -- Quick reminder, the Mandelbrot algorithm is this:
   --
   --   loop
   --     X_new = X_old^2 - Y_old^2 + Xc
@@ -59,7 +59,7 @@ architecture arch of Mandelbrot is
   -- (the thingies are declared below :-)
   -- All of them "rotate" around in the pipeline,
   -- shifted on each cycle to the right
-  -- (1->2, 2-3, ... 5->6, 7->1)
+  -- (1->2, 2-3, ... depth->1)
   --
   --  +-----------------------+
   --  | The pipelined signals |
@@ -75,9 +75,9 @@ architecture arch of Mandelbrot is
   signal Xc_pipe_reg : coord_array_type(1 to depth) := (others => (others => '0'));
   signal Yc_pipe_reg : coord_array_type(1 to depth) := (others => (others => '0'));
 
-  -- The current X (i.e both X_old and X_new above)
+  -- The current X (i.e both X_old and X_new in the algorithm above)
   signal X_pipe_reg : coord_array_type(1 to depth) := (others => (others => '0'));
-  -- The current Y (i.e both Y_old and Y_new above)
+  -- The current Y (i.e both Y_old and Y_new in the algorithm above)
   signal Y_pipe_reg : coord_array_type(1 to depth) := (others => (others => '0'));
 
   -- In a pipelined world, as soon as an output is generated
@@ -89,21 +89,22 @@ architecture arch of Mandelbrot is
   -- "target offset" in our screen memory.
   signal offst_pipe_reg : offst_array_type(1 to depth) := (others => (others => '0'));
 
-  -- The color value incremented in each iteration
-  -- of the Mandelbrot loop
+  -- The color value incremented in each iteration of the Mandelbrot loop
   signal iter_pipe_reg  : iterations_array(1 to depth) := (others => (others => '0'));
 
-  -- ...and it will be incremented by this.
-  -- It will normaly be '1' - until it becomes '0' when we
+  -- The color will be incremented by this much "delta".
+  -- This will normaly be '1' - until it becomes '0' when we
   -- reach the exit condition (so the color stays stable
   -- until we emit it out)
   signal iter_pipe_delta : iterations_array(1 to depth) := (others => (others => '0'));
 
-  -- The X,Y coordinates in the first slot of the pipeline
-  -- When we get a new input and the first slot is empty
-  -- (input_slot_empty = '1')  then they get the Xc, Yc
-  -- that where just input. Otherwise, they get the 7th
-  -- slot values that wrap-around into them.
+  -- The X,Y coordinates in the first slot of the pipeline.
+  -- When we get a new input and the first slot would be
+  -- empty in the next cycle (i.e. the last slot is currently
+  -- empty) then these two get the Xc, Yc that where just input.
+  --
+  -- Otherwise, they get the last slot values
+  -- (that wrap-around into them).
   signal X_reg : custom_fixed_point_type;
   signal Y_reg : custom_fixed_point_type;
 
@@ -120,14 +121,10 @@ architecture arch of Mandelbrot is
   -- The 2*X*Y used in computing Y_new
   signal XYpXY_reg : custom_fixed_point_type;
 
-  -- Did we overflow in the previous cycle?
+  -- Did we overflow in the previous phase?
   -- That is, did the XXpYY_reg of the next slot
   -- became larger than 4.0 ?
   signal overflow  : std_logic := '0';
-
-  -- Is the 1st slot empty? If so, we can put
-  -- new inputs in.
-  signal input_slot_empty : std_logic := '0';
 
   ---------------------------------------------------------
   -- Debugging what happens at each cycle with all these
@@ -144,10 +141,6 @@ architecture arch of Mandelbrot is
 
     write(l, string'("new_input_arrived:"));
     write(l, new_input_arrived);
-    writeline(OUTPUT, l);
-
-    write(l, string'("input_slot_empty:"));
-    write(l, input_slot_empty);
     writeline(OUTPUT, l);
 
     write(l, string'("new_input_ack:"));
@@ -211,8 +204,7 @@ begin
   process(clk, rst,
           is_used_slot, Xc_pipe_reg, Yc_pipe_reg,
           X_pipe_reg, Y_pipe_reg, offst_pipe_reg, XXmYY_reg,
-          iter_pipe_reg, new_input_arrived, overflow,
-          input_slot_empty)
+          iter_pipe_reg, new_input_arrived, overflow)
   begin
     if (rst='1') then
 
@@ -237,12 +229,11 @@ begin
       -- Uncomment this to see what happens per cycle
       -- debug_log("CLOCKED");
 
-      if new_input_arrived = '1' and input_slot_empty = '1' and new_input_ack = '0' then
-        -- New inputs are only accepted when:
-        --
-        -- - The outside world just provided them (new_input_arrived)
-        -- - The first slot is empty (input_slot_empty)
-        -- - And we haven't already raised an ack in the previous cycle
+      -- New inputs are only accepted when:
+      -- - The outside world just provided them (new_input_arrived)
+      -- - The first slot would be empty in the next cycle (i.e. last slot is currently empty)
+      -- - And we haven't already raised an ack in the previous cycle
+      if new_input_arrived = '1' and is_used_slot(depth) = '0' and new_input_ack = '0' then
 
         new_input_ack <= '1';
         is_used_slot(1) <= '1';
@@ -260,8 +251,8 @@ begin
 
         -- No new input: we just iterate, rolling everything...
         new_input_ack <= '0';
-        -- ...one slot to the right: 1->2, 2-3, ... 5->6, 7->1
-        -- These are the 7->1 parts:
+        -- ...one slot to the right: 1->2, 2-3, ... depth->1
+        -- These are the depth->1 parts:
         is_used_slot(1) <= is_used_slot(depth);
         Xc_pipe_reg(1) <= Xc_pipe_reg(depth);
         Yc_pipe_reg(1) <= Yc_pipe_reg(depth);
@@ -275,7 +266,7 @@ begin
 
       end if;
 
-      -- and these are the 2->3, 3->4 ... 6->7 parts
+      -- and these are the 1->2, 2->3 ... depth-1 -> depth) parts
       Xc_pipe_reg(2 to depth) <= Xc_pipe_reg(1 to depth-1);
       Yc_pipe_reg(2 to depth) <= Yc_pipe_reg(1 to depth-1);
 
@@ -284,10 +275,10 @@ begin
 
       -- In VHDL, subsequent assignments override previous ones
       -- That is, what happens in each clock cycle is determined
-      -- by the last assignment.
+      -- by the last assignment to the same target.
       --
-      -- We just did a massive 2->7 assignment of X_pipe_reg
-      -- and Y_pipe_reg above; but actually, in the 4th stage
+      -- We just did a massive 2..depth assignment of X_pipe_reg
+      -- and Y_pipe_reg above; but actually, in the 4th phase
       -- the "ingredients" for the final assignment of X_new
       -- and Y_new are there - the multipliers (see below)
       -- have finished their job; so we override the assignments
@@ -299,27 +290,27 @@ begin
       -- Y_new = 2*X_old*Y_old + Yc
       Y_pipe_reg(4) <= resize(XYpXY_reg + Yc_pipe_reg(3), Y_pipe_reg(3));
 
-      -- More 2->7 assignments; this time, for the offsets.
-      -- Note that these are never assigned beyond the input stage;
+      -- More 2->depth assignments; this time, for the offsets.
+      -- Note that these are never assigned beyond the input phase;
       -- they are just constantly "rolled" until they are emitted
       -- in the final step.
       offst_pipe_reg(2 to depth) <= offst_pipe_reg(1 to depth-1);
 
       -- The color counters.
-      -- We begin with the roll: 2->3, ... 6->7 assignment
+      -- We begin with the roll: 2->3, ... depth-1 -> depth assignment
       iter_pipe_reg(2 to depth) <= iter_pipe_reg(1 to depth-1);
 
       -- But override the color of the last slot: it should actually
       -- be updated based on the delta (0 or 1).
       --
-      -- Why are we doing this on the 7th slot? Well, by this time
+      -- Why are we doing this on the last slot? Well, by this time
       -- the delta has been set to 0 or 1 for sure; (see below)
       -- so it's the "safest" place to do this knowing there's
       -- no "race" :-)
       iter_pipe_reg(depth) <= iter_pipe_reg(depth-1) + iter_pipe_delta(depth-1);
 
       -- The color deltas are easy - just roll
-      -- (2->3, ... 6->7 assignment)
+      -- (1->2, 2->3, ... , depth-1 -> depth assignment)
       iter_pipe_delta(2 to depth) <= iter_pipe_delta(1 to depth-1);
 
       -- ...as is the "whether the slot is used or not":
@@ -327,17 +318,17 @@ begin
 
       -- Now for some harder stuff: the 'overflow' is set when
       -- we have a fully computed x^2+y^2. This happens in the
-      -- 4th slot (see below), which is where we also set 'overflow'.
-      if overflow = '0' then
-        -- so if we haven't overflowed, copy the is_used_slot
-        -- and the color delta from slot 4 to slot 5 as-is.
-        is_used_slot(5) <= is_used_slot(4);
-        iter_pipe_delta(5) <= iter_pipe_delta(4);
-      else
-        -- BUT if we just overflowed, then the slot should be
-        -- marked as "free" (so that when it reaches the 7th slot,
-        -- "input_slot_empty" will be set, and allow new input
-        -- to be put in it):
+      -- 4th phase (see below), which is where 'overflow' has
+      -- stabilised (it was set in phase 3). We can therefore
+      -- decide what to write in slot 5, based on overflow!
+      --
+      -- If no overflow has been detected, then the previous
+      -- "mass copies into is_used_slot and iter_pipe_delta
+      -- suffice; slot 5 will get the values of slot 4.
+      if overflow = '1' then
+        -- ...but if we just overflowed, then the slot should be
+        -- marked as "free" (so that when it reaches the last slot,
+        -- new input will be allowed in)
         is_used_slot(5) <= '0';
 
         -- In addition, no more delta! The color must stay put
@@ -346,7 +337,7 @@ begin
 
         -- Might as well reset the Xc and Yc. It's not necessary
         -- (since we won't use them anymore) but it helps 
-        -- debugging (the useless slots have zeroes in their Xc/Yc).
+        -- debugging (the unused slots have zeroes in their Xc/Yc).
         Xc_pipe_reg(5) <= (others => '0');
         Yc_pipe_reg(5) <= (others => '0');
 
@@ -355,60 +346,11 @@ begin
     end if;
   end process;
 
-  --------------------------------------------------------------
-  -- "input_slot_empty" is read in the main stage process above,
-  -- and set here (only one process must write in each target)
-  process(rst, clk, is_used_slot, iter_pipe_reg)
-  begin
-    if (rst='1') then
-      input_slot_empty <= '1';
-    elsif rising_edge(clk) then
-      -- Why do we use depth-1 here? Good question :-)
-      if is_used_slot(depth-1) = '0' then
-        -- Here's why:
-        --
-        -- Notice in the main stage above, that we assign new
-        -- inputs to the 1st slot, if input_slot_empty is set.
-        -- Since we are clock-driven, we need to know that
-        -- the 1st slot WOULD be empty in the next cycle; so we
-        -- need to know that the "is_used_slot" state is like this:
-        --
-        --    is_used_slot: x, x, x, x, x, x, 0
-        --
-        -- ...at the same time that we set input_slot_empty to 1.
-        --
-        -- But think of this in terms of cycles: That means that
-        -- the decision to set input_slot_empty to 1, must be taken
-        -- one cycle before - i.e. when "is_used_slot" looks like:
-        --
-        --    is_used_slot: x, x, x, x, x, 0, x
-        --
-        input_slot_empty <= '1';
-        --
-        -- In plain terms, by the cycle where we get to this state:
-        --
-        --    is_used_slot: x, x, x, x, x, x, 0
-        --
-        -- ...input_slot_empty is also already set to '1'.
-        --
-        -- So the decision to accept new inputs in the main stage
-        -- (above) can use:
-        --
-        --    if new_input_arrived and input_slot_empty = '1'...
-        --
-        -- ...and know that when we assing the new input in slot 1,
-        -- we DONT lose a value that would rotate in from 7 to 1!
-      else
-        input_slot_empty <= '0';
-      end if;
-    end if;
-  end process;
-
   -------------------------------------------------------------
-  -- assigned after one cycle (input currently in slot 2)
+  -- Phase 1: input currently in slot 1 (and X_reg, Y_reg)
   -------------------------------------------------------------
 
-  -- Easy stages: the x^2, y^2 and x*y multipliers
+  -- Easy: the x^2, y^2 and x*y multipliers
 
   process(clk, rst, X_reg)
   begin
@@ -438,10 +380,10 @@ begin
   end process;
 
   -------------------------------------------------------------
-  -- assigned after two cycles (input is currently in slot 2)
+  -- Phase 2: input is in slot 2, x^2, y^2, x*y already done
   -------------------------------------------------------------
 
-  -- Easy stages: the x^2+y^2, x^2-y^2 and 2*x*y computations
+  -- Still easy: the x^2+y^2, x^2-y^2 and 2*x*y computations
 
   process(clk, rst, XX_reg, YY_reg, XY_reg)
     variable l : line;
@@ -467,8 +409,8 @@ begin
         write(l, string'(" => XXpYY_reg:"));
         write(l, to_hex(to_slv(XX_reg + YY_reg)));
         write(l, string'(" ("));
-        -- Notice that we know, that at this stage,
-        -- the corresponding input is at slot 2 by now
+        -- we know that at this phase,
+        -- the corresponding input is at slot 2
         write(l, to_hex(to_slv(Xc_pipe_reg(2))));
         write(l, string'(")"));
         writeline(OUTPUT, l);
@@ -477,14 +419,13 @@ begin
   end process;
 
   -------------------------------------------------------------
-  -- assigned after three cycles (input is currently in slot 3)
+  -- Phase 3: input is in slot 3, all "ingredients" are done
   -------------------------------------------------------------
 
-  -- The overflow stage:
-  -- the "ingredients" for the final assignment of X_new
-  -- and Y_new are there - the multipliers and adders
-  -- have finished their job. It's time to check the x^2+Y^2
-  -- against 4.0. And since we are using fixed-point with
+  -- The overflow phase: "ingredients" for the final assignment of
+  -- X_new and Y_new are there (the multipliers and adders
+  -- have finished their job). It's time to check the x^2+Y^2
+  -- against 4.0! And since we are using fixed-point with
   -- 6 non-fractional bits, anything larger than 4.0 would 
   -- have top bits ZZZZXX with at least one of Z being a '1'!
   --            (32, 16, 8, 4, 2, 1)
@@ -499,7 +440,7 @@ begin
       overflow <= '0';
       -- We must only set the overflow signal if the 
       -- corresponding slot is NOT empty.
-      -- At this stage, the corresponding input is at slot 3.
+      -- At this phase, the corresponding input is at slot 3.
       if is_used_slot(3) = '1' then
         if  to_slv(XXpYY_reg)(31) or
             to_slv(XXpYY_reg)(30) or
@@ -518,7 +459,7 @@ begin
   end process;
 
   -------------------------------------------------------------
-  -- assigned after four cycles (input is currently in slot 4)
+  -- Phase 4: 'overflow' has been assigned, input is in slot 4)
   -------------------------------------------------------------
 
   process(clk, rst,
@@ -532,7 +473,7 @@ begin
       output_offset <= (others => '0');
       output_number <= X"00";
     elsif rising_edge(clk) then
-      -- In the previous stage, we've set the 'overflow' flag.
+      -- In the previous phase, we've set the 'overflow' flag.
       -- By this cycle, we can check it and decide whether
       -- to emit output or not.
       if overflow = '0' then

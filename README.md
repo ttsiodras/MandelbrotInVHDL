@@ -40,9 +40,8 @@ They match; and in addition, it reports:
 That is, the computation of these 45 points on the complex plane of the
 Mandelbrot set, took 22.17 microseconds.
 
-<img src="contrib/naive.jpg" alt="The naive, SW-like implementation">
-The naive, SW-like implementation
-</img>
+<img src="contrib/naive.jpg" alt="The naive, SW-like implementation"><BR>
+<em>The naive, SW-like implementation</em>
 
 `make waves` records a VCD trace from GHDL, and launches GTKWave on it,
 allowing us to see what happens with the signals. Notice the "empty space",
@@ -59,9 +58,8 @@ things change - when we do `make test` here, we see this:
 
 That is, instead of 22.17us, the new circuit takes 7.78us **to do the same work**.
 
-<img src="contrib/pipelined.jpg" alt="The pipelined implementation">
-The pipelined implementation
-</img>
+<img src="contrib/pipelined.jpg" alt="The pipelined implementation"><BR>
+<em>The pipelined implementation</em>
 
 No "empty space" anymore :-)
 

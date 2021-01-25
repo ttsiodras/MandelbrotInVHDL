@@ -96,9 +96,9 @@ begin
       input_y <= patterns(i).iy;
       input_offset <= to_unsigned(i, input_offset);
       wait for cycle_period;
-      write(l, string'("InputX for offset:"));
+      write(l, string'("[TB] New input X for offset "));
       write(l, to_hex(input_offset));
-      write(l, string'(" :"));
+      write(l, string'(" is "));
       write(l, to_hex(input_x));
       writeline(OUTPUT, l);
       new_input_arrived <= '1';
@@ -135,7 +135,7 @@ begin
       end loop;
       received_value := to_integer(output_number);
 
-      write(l, string'("Output for offset:"));
+      write(l, string'("[TB] Output received for offset:"));
       write(l, to_hex(output_offset));
       write(l, string'(" was:"));
       write(l, received_value);
@@ -143,14 +143,14 @@ begin
 
       idx := to_integer(output_offset);
       expected_value := patterns(idx).o;
-      write(l, string'("For index "));
+      write(l, string'("[TB] For index "));
       write(l, idx);
       write(l, string'(" I was expecting:"));
       write(l, expected_value);
       writeline(OUTPUT, l);
 
       total_received := total_received + 1;
-      write(l, string'("Received "));
+      write(l, string'("[TB] Received test result: "));
       write(l, total_received);
       write(l, string'(" / "));
       write(l, patterns'length);

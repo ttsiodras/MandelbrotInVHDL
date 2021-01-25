@@ -120,7 +120,7 @@ begin
       assert OutputNumber = patterns(i).o
         report "bad mandelbrot result value" severity error;
     end loop;
-    -- assert false report "end of test" severity note;
+    assert false report "Successful end of test" severity note;
     --  Wait forever; this will finish the simulation.
     wait;
   end process;

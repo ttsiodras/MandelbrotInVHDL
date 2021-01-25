@@ -31,14 +31,14 @@ Running
 
     make test
 
-...from inside the "GHDL" folder, the code compares 45 outputs from
+...from inside the "GHDL" folder, the code compares 89 outputs from
 the C version of the algorithm, with those from the HW version.
 They match; and in addition, it reports:
 
-    tb/mandel_tb.vhdl:172:5:@22170ns:(assertion note): Successful end of test
+    tb/mandel_tb.vhdl:216:5:@644010ns:(assertion note): Successful end of test
 
-That is, the computation of these 45 points on the complex plane of the
-Mandelbrot set, took 22.17 microseconds.
+That is, the computation of these 89 points on the complex plane of the
+Mandelbrot set, took 644.01 microseconds.
 
 <img src="contrib/naive.jpg" alt="The naive, SW-like implementation"><BR>
 <em>The naive, SW-like implementation</em>
@@ -53,25 +53,31 @@ Basically, this is how our CPUs work - instruction by instruction.
 But in the ["GHDL simulation pipelined" branch](https://github.com/ttsiodras/MandelbrotInVHDL/tree/GHDL_simulation_pipelined/),
 things change - when we do `make test` here, we see this:
 
-    Received 45 / 45
-    tb/mandel_tb.vhdl:164:9:@7780ns:(assertion note): Successful end of test
+    [TB] Received test result of 240, passing test 89 / 89
+    tb/mandel_tb.vhdl:178:9:@177060ns:(assertion note): Successful end of test
 
-That is, instead of 22.17us, the new circuit takes 7.78us **to do the same work**.
+That is, instead of 644.01us, the new circuit takes 177.06us **to do the same work**.
+
+In other words, it is 3.63 times faster. Why?
 
 <img src="contrib/pipelined.jpg" alt="The pipelined implementation"><BR>
 <em>The pipelined implementation</em>
 
-No "empty space" anymore :-)
+Because there is no "empty space" anymore :-)
+
+We are not like a CPU anymore - we are a proud, pipelined HW circuit.
 
 Basically, the 3 multipliers involved in the Mandelbrot computation are almost
 constantly kept busy - they never stop unless the pipeline is empty. As long as
 we keep feeding the engine with inputs, they are doing work on every cycle - as
-opposed to the serial version, that only uses them in the 2 stages.
+opposed to the serial version, that only uses them in the first two stages.
+Same for the adders that follow - etc.
 
-This was much harder than I expected... I am very happy I finally figured it out.
+To be honest, writing this code was much harder than I expected... I am very happy
+I finally figured it out.
 
 And I now fully appreciate [GHDL](https://github.com/ghdl/ghdl); I couldn't have
-fixed my code without it. The graphical representations alone (shown above
+fixed my VHDL code without it. The graphical representations alone (shown above
 via `make waves") are not enough when you track down "race conditions" in HW signals.
 
 OK, next step: run this in the Spartan3, and witness the 3x speedup with my

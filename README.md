@@ -35,10 +35,10 @@ Running
 the C version of the algorithm, with those from the HW version.
 They match; and in addition, it reports:
 
-    tb/mandel_tb.vhdl:172:5:@22170ns:(assertion note): Successful end of test
+    tb/mandel_tb.vhdl:172:5:@232130ns:(assertion note): Successful end of test
 
 That is, the computation of these 45 points on the complex plane of the
-Mandelbrot set, took 22.17 microseconds.
+Mandelbrot set, took 232.13 microseconds.
 
 <img src="contrib/naive.jpg" alt="The naive, SW-like implementation"><BR>
 <em>The naive, SW-like implementation</em>
@@ -53,10 +53,10 @@ Basically, this is how our CPUs work - instruction by instruction.
 But in the ["GHDL simulation pipelined" branch](https://github.com/ttsiodras/MandelbrotInVHDL/tree/GHDL_simulation_pipelined/),
 things change - when we do `make test` here, we see this:
 
-    Received 45 / 45
-    tb/mandel_tb.vhdl:164:9:@7780ns:(assertion note): Successful end of test
+    [TB] Received test result of 240, passing test 45 / 45
+    tb/mandel_tb.vhdl:178:9:@70820ns:(assertion note): Successful end of test
 
-That is, instead of 22.17us, the new circuit takes 7.78us **to do the same work**.
+That is, instead of 232.13us, the new circuit takes 70.82us **to do the same work**.
 
 <img src="contrib/pipelined.jpg" alt="The pipelined implementation"><BR>
 <em>The pipelined implementation</em>

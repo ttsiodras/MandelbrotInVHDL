@@ -12,7 +12,9 @@ back to the main PC over the USB bus.
 Now I need to find the time... to try to pipeline this - so I can get
 one pixel output per cycle.
 
-**UPDATE, Jan 25th, 2021**: I found the time :-)
+**UPDATE, Jan 25th, 2021**
+
+I found the time :-)
 
 Basically, my original code "mirrored" every line of the mandelbrot C code
 by conceptually turning each line into a state of the state machine:
@@ -75,10 +77,28 @@ Same for the adders that follow - etc.
 
 To be honest, writing this code was much harder than I expected... I am very happy
 I finally figured it out.
-
+ 
 And I now fully appreciate [GHDL](https://github.com/ghdl/ghdl); I couldn't have
 fixed my VHDL code without it. The graphical representations alone (shown above
 via `make waves") are not enough when you track down "race conditions" in HW signals.
 
 OK, next step: run this in the Spartan3, and witness the 3x speedup with my
 own eyes :-)
+
+**UPDATE, Jan 26th, 2021**
+
+Done - quite easy, actually. The hard part was the
+pipelining of the code - and this was tested very well under simulation.
+
+The only remaining challenge was to "drain" the generated outputs quickly
+in the SRAM. Thankfully, it seems that apart from a latency of 1 cycle at
+the beginning (set address and data, wait a cycle, set "write enable"),
+I can subsequently change address/data on every cycle while keeping the 
+"write enable" set. The SRAM in question keeps up, so I got to see my
+interactive "Zoomer" run 2.5 times faster than before :-)
+
+*P.S. If you want to see 1000 times faster interactive zooms, checks my "XaoS"-inspired
+[SW optimization](https://github.com/ttsiodras/MandelbrotSSE) - where I
+avoid recomputing the pixels, by re-using them from the previous frame.
+Clever algorithms always win :-)*
+

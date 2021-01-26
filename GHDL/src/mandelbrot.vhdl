@@ -394,7 +394,7 @@ begin
   -- Still easy: the x^2+y^2, x^2-y^2 and 2*x*y computations
 
   process(clk, rst, XX_reg, YY_reg, XY_reg)
-    variable l : line;
+    -- variable l : line;
   begin
     if (rst='1') then
       XXpYY_reg <= (others => '0'); 

@@ -54,22 +54,31 @@ architecture arch of Example3 is
     -- Details about it are in "Mandelbrot.vhd";
     component Mandelbrot
         port (
-            CLK              : in std_logic;
-            RST              : in std_logic;
+          CLK               : in std_logic;
+          RST               : in std_logic;
 
-            -- These are the input coordinates on the complex plane
-            -- for which the computation will take place.
-            input_x, input_y : in std_logic_vector(31 downto 0);
+          -- These are the input coordinates on the complex plane
+          -- for which the computation will take place.
+          input_x, input_y  : in std_logic_vector(31 downto 0);
+          -- And this is the screen offset where the returned
+          -- color result will be written into:
+          input_offset      : in unsigned(31 downto 0);
+          -- When this is pulsed once (0->1->0) the engine "wakes up" and
+          -- starts trying to store the inputs (x,y,ofs) in the pipeline
+          new_input_arrived : in std_logic;
+          -- as soon as it manages to do this, it pulses this:
+          new_input_ack     : out std_logic;
+          -- ...and starts processing.
 
-            -- When this is pulsed once (0->1->0) the engine "wakes up" and
-            -- starts computing the output color.
-            startWorking     : in std_logic;
-
-            --  When it concludes computing, it stores the result here...
-            OutputNumber     : out std_logic_vector(7 downto 0);
-
-            -- ...and raises this ; to signal completion.
-            finishedWorking  : out std_logic
+          --  When it concludes computing, it stores the result here...
+          output_number     : out unsigned(7 downto 0);
+          output_offset     : out unsigned(31 downto 0);
+          -- ...so the outer circuit can take this result and plot it.
+          -- To wake it up, we pulse this, to signal completion.
+          new_output_made   : out std_logic
+          -- No ACK is needed, because we expect someone to be
+          -- constantly waiting for this new_output signal, and 
+          -- immediately store the output in some single-cycle buffer.
         );
     end component;
 
@@ -205,13 +214,12 @@ architecture arch of Example3 is
     signal Interrupt : std_logic;
 
     -- The State Machine (TM)
-    type state_type is (
+    type state_type_main is (
         receiving_input,         -- waiting for X,Y of upper left corner
-        drawRows,                -- outer loop (per row)
-        drawPixels,              -- inner loop (per pixel)
-        waitForMandelbrot,       -- wait for engine to compute color
-        drawPixelsWaitForWrite,  -- engine finished, write to SRAM
-
+        feedRows,                -- outer loop (per row)
+        feedPixels,              -- inner loop (per pixel)
+        waitForMandelbrotAck,    -- wait for engine to ack receipt of input
+        waitForAllOutputs,       --
         waitForDMAtoPC,          -- wait for PC to initiate USB burst read
         DMAing,                  -- ...and read from memory
         DMAwaitingSRAM,
@@ -219,7 +227,14 @@ architecture arch of Example3 is
         DMAwaitingSRAM3,         -- since our USB bus is 16-bit big
         DMAwaitingForUSB         -- and then wait for USB to say it's ready
     );
-    signal state : state_type;
+    signal state : state_type_main;
+
+    -- Auxiliary State Machine handling async outputs from Mandelbrot engine
+    type state_type_aux is (
+        waiting_for_outputs,
+        writing_to_memory       -- engine reported new color computed
+    );
+    signal state_aux : state_type_aux;
 
     -- When debugging what is happening, these store additional info.
     signal debug1 : std_logic_vector(31 downto 0);
@@ -238,6 +253,9 @@ architecture arch of Example3 is
     -- ...and inner (X)
     signal PixelsToCompute : natural range 0 to span_x;
 
+    -- How many pixels remaining to output?
+    signal PixelsOutputRemaining : natural range 0 to span_x*span_y;
+
     -- When we finish computing a color, we write it in this address in SRAM.
     signal AddressInSRAMtoWriteTheNextPixelTo : unsigned(22 downto 0);
 
@@ -251,9 +269,13 @@ architecture arch of Example3 is
     signal input_x, input_y     : std_logic_vector(31 downto 0);
     signal dinput_x, dinput_y   : std_logic_vector(31 downto 0);
     signal input_x_orig         : std_logic_vector(31 downto 0);
-    signal startMandelEngine    : std_logic;
-    signal OutputNumber         : std_logic_vector(7 downto 0);
-    signal mandelEngineFinished : std_logic;
+    signal input_offset         : unsigned(31 downto 0);
+    signal new_input_arrived    : std_logic;
+    signal new_input_ack        : std_logic;
+    signal output_number        : unsigned(7 downto 0);
+    signal output_offset        : unsigned(31 downto 0);
+    signal output_offset_slv    : std_logic_vector(31 downto 0);
+    signal new_output_made      : std_logic;
 
     -- Since we deliver two 8-bit pixel colors in one 16-bit USB transaction,
     -- we need a "staging" place to store the 1st value read from SRAM
@@ -270,21 +292,26 @@ begin
     IO <= (0=>LEDs(0), 1=>LEDs(1), 41=>LEDs(2), 42=>LEDs(3), 43=>LEDs(4),
            44=>LEDs(5), 45=>LEDs(6), 46=>LEDs(7), others => 'Z');
 
+    output_offset_slv <= std_logic_vector(output_offset);
+
     process (RST, CLK)
     begin
         if (RST='1') then
             input_x <= X"00000000";
             input_y <= X"00000000";
+            input_offset <= (others => '0');
             dinput_x <= X"00000000";
             dinput_y <= X"00000000";
             state <= receiving_input;
-            SRAMDataOut <= (others => '0');
-            debug1 <= (others => '0');
             debug2 <= (others => '0');
             ReadingActive <= '0';
             USB_DataOutWE <= '0';
             USB_DataOut <= (others => '0');
             USB_DataInBusy <= '0';
+
+            SRAMDataOut <= (others => '0');
+            state_aux <= waiting_for_outputs;
+            debug1 <= (others => '0');
 
         elsif rising_edge(CLK) then
 
@@ -296,11 +323,10 @@ begin
             -- This allows me to not need to introduce states to "set high",
             -- "wait one cycle", "set low", etc.
 
-            SRAMWE <= '0';
             SRAMRE <= '0';
             USB_DataInBusy <= '0';
             startComputing <= '0';
-            startMandelEngine <= '0';
+            new_input_arrived <= '0';
             ReadingActive <= '0';
             USB_DataOutWE <= '0';
 
@@ -341,13 +367,13 @@ begin
                     when X"206F" =>
                         dinput_y(31 downto 24) <= DataIn;
                         debug2 <= X"44444444";
+                        PixelsOutputRemaining <= span_x * span_y;
                         RowsToCompute <= span_y;
                         AddressInSRAMtoWriteTheNextPixelTo <= (others => '0');
                         startComputing <= '1';
 
                     when X"2080" => ReadingActive <= '1';
                                     ReadCount <= span_x*span_y;
-                                    SRAMAddr <= (others => '0');
 
                     when others =>
                 end case;
@@ -362,10 +388,11 @@ begin
                         -- since we need to revert back to it
                         -- everytime we start work on a new scanline.
                         input_x_orig <= input_x;
-                        state <= drawRows;
+                        input_offset <= (others => '0');
+                        state <= feedRows;
                     end if;
 
-                when drawRows =>
+                when feedRows =>
                     -- Did we finish all rows?
                     if RowsToCompute /= 0 then
                         -- Nope.
@@ -375,25 +402,21 @@ begin
                             to_unsigned(RowsToCompute, debug2'length));
                         -- We will compute span_x pixels now.
                         PixelsToCompute <= span_x;
-                        state <= drawPixels;
+                        state <= feedPixels;
                     else
                         -- We're done! Go wait for the PC to read this.
-                        state <= waitForDMAtoPC;
-                        SRAMAddr <= (others => '0');
+                        state <= waitForAllOutputs;
                     end if;
 
-                when drawPixels =>
+                when feedPixels =>
                     -- Did we finish all pixels?
                     if PixelsToCompute /= 0 then
                         -- Nope.
                         PixelsToCompute <= PixelsToCompute - 1;
-                        -- Keep a running counter (so the PC can progress bar)
-                        debug1 <= std_logic_vector(
-                            to_unsigned(PixelsToCompute, debug1'length));
                         -- Signal the tiny engine to go compute
                         -- from the current values of (input_x,input_y)
-                        startMandelEngine <= '1';
-                        state <= waitForMandelbrot;
+                        new_input_arrived <= '1';
+                        state <= waitForMandelbrotAck;
                     else
                         -- Yes! Time to move to next scanline.
                         -- Revert to the leftmost X co-ordinate...
@@ -402,34 +425,33 @@ begin
                         input_y <= std_logic_vector(
                             unsigned(input_y) - unsigned(dinput_y));
                         -- Now loop again!
-                        state <= drawRows;
+                        state <= feedRows;
                     end if;
 
-                when waitForMandelbrot =>
-                    if mandelEngineFinished = '0' then
-                        state <= waitForMandelbrot;
+                when waitForMandelbrotAck =>
+                    -- as long as we have not received an ACK,
+                    -- this signal must stay high:
+                    new_input_arrived <= '1';
+                    if new_input_ack = '0' then
+                        state <= waitForMandelbrotAck;
                     else
-                        -- The Mandelbrot engine computed the color
-                        -- Prepare to write it to SRAM:
-                        SRAMDataOut <= "0000000000" & OutputNumber;
+                        -- stop saying this.
+                        new_input_arrived <= '0';
+                        -- The Mandelbrot engine got the new input coordinates
+                        -- so it is time to feed it the next pixel coordinates
+                        state <= feedPixels;
+                        input_offset <= input_offset+1;
                         -- Go right one step, to prepare for next pixel
                         input_x <= std_logic_vector(
                             unsigned(input_x) + unsigned(dinput_x));
-                        -- Setup target address in SRAM
-                        SRAMAddr <= std_logic_vector(
-                            AddressInSRAMtoWriteTheNextPixelTo);
-                        AddressInSRAMtoWriteTheNextPixelTo <=
-                            AddressInSRAMtoWriteTheNextPixelTo + 1;
-                        -- But you can't write yet - wait for next cycle
-                        -- till address and databus stabilize.
-                        state <= drawPixelsWaitForWrite;
                     end if;
 
-                when drawPixelsWaitForWrite =>
-                    -- Write pulse!
-                    SRAMWE <= '1';
-                    -- ...and continue with next pixel.
-                    state <= drawPixels;
+                when waitForAllOutputs =>
+                    if PixelsOutputRemaining /= 0 then
+                        state <= waitForAllOutputs;
+                    else
+                        state <= waitForDMAtoPC;
+                    end if;
 
                 when waitForDMAtoPC =>
                     debug2 <= X"55555555";
@@ -437,6 +459,7 @@ begin
                     if ReadingActive = '1' then
                         -- It did - time to DMA.
                         state <= DMAing;
+                        SRAMAddr <= (others => '0');
                     else
                         state <= waitForDMAtoPC;
                     end if;
@@ -493,6 +516,57 @@ begin
 
             end case; -- case state is ...
 
+            SRAMWE <= '0';
+
+            case state_aux is
+                when waiting_for_outputs =>
+                    -- check if the engine reports a new output
+                    if new_output_made = '1' then
+                        -- One less pixel to wait for...
+                        PixelsOutputRemaining <= PixelsOutputRemaining - 1;
+
+                        -- Keep a running counter (so the PC can progress bar)
+                        debug1 <= std_logic_vector(
+                            to_unsigned(PixelsOutputRemaining, debug1'length));
+                        -- if so, take a shortcut to write
+                        -- the new color in SRAM
+                        -- Prepare to write the new pixel color to SRAM:
+                        SRAMDataOut <=
+                            "0000000000" & std_logic_vector(output_number);
+                        -- Setup target address in SRAM
+                        SRAMAddr <= output_offset_slv(22 downto 0);
+                        -- But you can't write yet - wait for next cycle
+                        -- till address and databus stabilize.
+                        state_aux <= writing_to_memory;
+                    else
+                        state_aux <= waiting_for_outputs;
+                    end if;
+
+                when writing_to_memory =>
+                    -- we've already setup address and data bus, 
+                    -- and they have stabilized by now. Write pulse!
+                    SRAMWE <= '1';
+                    state_aux <= waiting_for_outputs;
+                    if new_output_made = '1' then
+                        -- One less pixel to wait for...
+                        PixelsOutputRemaining <= PixelsOutputRemaining - 1;
+
+                        -- Keep a running counter (so the PC can progress bar)
+                        debug1 <= std_logic_vector(
+                            to_unsigned(PixelsOutputRemaining, debug1'length));
+                        -- if so, take a shortcut to write
+                        -- the new color in SRAM
+                        -- Prepare to write the new pixel color to SRAM:
+                        SRAMDataOut <=
+                            "0000000000" & std_logic_vector(output_number);
+                        -- Setup target address in SRAM
+                        SRAMAddr <= output_offset_slv(22 downto 0);
+                        -- But you can't write yet - wait for next cycle
+                        -- till address and databus stabilize.
+                        state_aux <= writing_to_memory;
+                    end if;
+
+            end case; -- case state_aux is...;
         end if; -- if rising_edge(CLK) ...
     end process;
 
@@ -522,9 +596,12 @@ begin
             RST => RST,
             input_x => input_x,
             input_y => input_y,
-            startWorking => startMandelEngine,
-            OutputNumber => OutputNumber,
-            finishedWorking => mandelEngineFinished
+            input_offset => input_offset,
+            new_input_arrived => new_input_arrived,
+            new_input_ack => new_input_ack,
+            output_number => output_number,
+            output_offset => output_offset,
+            new_output_made => new_output_made
         );
 
     Interfaces : ZestSC1_Interfaces

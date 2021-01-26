@@ -4,10 +4,7 @@
 
 library ieee;
 use ieee.std_logic_1164.all;
-use ieee.numeric_std.all;
-
-library ieee_proposed;
-use ieee_proposed.fixed_pkg.all;
+use ieee.fixed_pkg.all;
 
 package custom_fixed_point_types is
 

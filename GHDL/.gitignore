@@ -1,0 +1,8 @@
+.built*
+**/*.o
+work
+mandel_tb
+c/tests.adb
+simulation
+tb/test_data.vhdl
+received_results.txt

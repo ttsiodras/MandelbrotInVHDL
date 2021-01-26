@@ -245,6 +245,7 @@ proc add_source_files {} {
    xfile add "Example3.vhd"
    xfile add "Mandelbrot.vhd"
    xfile add "MyTypes.vhd"
+   xfile add "pipeline_types.vhd"
    xfile add "testFinallyWorks.vhd"
 
    # Set the Top Module as well...

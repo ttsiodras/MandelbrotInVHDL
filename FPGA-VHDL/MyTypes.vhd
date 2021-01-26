@@ -13,8 +13,8 @@ package custom_fixed_point_types is
 
     -- 27 fractional bits should be enough for my mandelbrot computations.
 
-    constant integerPart  : integer := 5;
-    constant fractionalPart : integer := 27;
+    constant integerPart  : integer := 6;
+    constant fractionalPart : integer := 26;
 
     subtype custom_fixed_point_type is
         sfixed(integerPart - 1 downto -fractionalPart);

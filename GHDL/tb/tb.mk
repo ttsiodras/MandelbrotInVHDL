@@ -29,8 +29,9 @@ test:	compileTB
 	    echo "[x] Failure. Aborting..." ; \
 	    exit 1 ; \
 	}
-	$(Q)grep '45 / 45' ${ROOT_DIR}received_results.txt >/dev/null || { \
-	    echo "[x] Failure. Didn't receive all 45 test results..." ; \
+	$(Q)TOTAL_TESTS=$$(( -2 + $$(wc -l c/tests.adb | cut -d\  -f 1))) ; \
+	    grep "$${TOTAL_TESTS} / $${TOTAL_TESTS}" ${ROOT_DIR}received_results.txt >/dev/null || { \
+	    echo "[x] Failure. Didn't receive all $${TOTAL_TESTS} test results..." ; \
 	    exit 1 ; \
 	}
 	$(Q)echo "[GHDL] All tests passed."

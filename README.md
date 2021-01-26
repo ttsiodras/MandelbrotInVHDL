@@ -16,8 +16,8 @@ one pixel output per cycle.
 
 Basically, my original code "mirrored" every line of the mandelbrot C code
 by conceptually turning each line into a state of the state machine:
-[stage1](https://github.com/ttsiodras/MandelbrotInVHDL/blob/master/FPGA-VHDL/Mandelbrot.vhd#L82),
-[stage2](https://github.com/ttsiodras/MandelbrotInVHDL/blob/master/FPGA-VHDL/Mandelbrot.vhd#L93),
+[stage1](https://github.com/ttsiodras/MandelbrotInVHDL/blob/f07d252dfde2952a797cf9a408ae583f1dcf005a/FPGA-VHDL/Mandelbrot.vhd#L82),
+[stage2](https://github.com/ttsiodras/MandelbrotInVHDL/blob/f07d252dfde2952a797cf9a408ae583f1dcf005a/FPGA-VHDL/Mandelbrot.vhd#L93),
 etc.
 
 But what I really wanted, was to make this pipelined - i.e. to find a way

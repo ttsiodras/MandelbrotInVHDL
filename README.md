@@ -27,13 +27,13 @@ The first step towards this goal, was to write a complete simulation - using
 the excellent open-source GHDL simulator. I did this inside the
 [branch "GHDL simulation"](https://github.com/ttsiodras/MandelbrotInVHDL/tree/GHDL_simulation).
 
-Running
+Running...
 
-    make test
+    make simulation
 
-...from inside the "GHDL" folder, the code compares 89 outputs from
-the C version of the algorithm, with those from the HW version.
-They match; and in addition, it reports:
+...the testbench code inside `GHDL/tb/mandel_tb.vhdl` will compare 89 outputs
+from the C version of the algorithm, with those from the HW version.
+They will match; and in addition, it will report:
 
     tb/mandel_tb.vhdl:216:5:@644010ns:(assertion note): Successful end of test
 

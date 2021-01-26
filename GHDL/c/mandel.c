@@ -47,15 +47,13 @@ uint32_t mandel(int32_t re, int32_t im)
 int main()
 {
     double red;
-    int32_t re, im;
+    int32_t re, im = FLOAT2FIXED(-0.1);
     printf("    constant patterns : pattern_array := (\n");
-    for(red = -2.2; red<0; red+=0.05) {
+    for(red = -2.2; red<2.2; red+=0.05) {
         re = FLOAT2FIXED(red);
-        im = FLOAT2FIXED(-0.5);
         printf("      (X\"%08x\", X\"%08x\", X\"%08x\"),\n", re, im, mandel(re, im));
     }
     red = 0;
     re = FLOAT2FIXED(red);
-    im = FLOAT2FIXED(-0.5);
     printf("      (X\"%08x\", X\"%08x\", X\"%08x\")\n);\n", re, im, mandel(re, im));
 }

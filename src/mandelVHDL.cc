@@ -6,7 +6,7 @@
 
 const unsigned WIDTH = 320;
 const unsigned HEIGHT = 240;
-const unsigned FRACTIONAL_PART = 27;
+const unsigned FRACTIONAL_PART = 26;
 
 const double SCALE_FACTOR = ((double)(1<<FRACTIONAL_PART));
 

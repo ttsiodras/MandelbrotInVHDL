@@ -13,7 +13,7 @@ int main(int argc, char *argv[])
 {
     mandelVHDL_init();
     unsigned char *Buffer = (unsigned char *)malloc(WIDTH*HEIGHT);
-    for (int i=0; i<3; i++) {
+    for (int i=0; i<1; i++) {
         // Send the window coordinates
         // top-left x,y, and stepx,stepy
         struct timeval Start;

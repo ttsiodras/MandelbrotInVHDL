@@ -95,6 +95,9 @@ void mandelVHDL(unsigned char *framebuffer, double xld, double yld, double xru, 
 
     // Wait until the FPGA reports all scanlines computed
     while(ReadNBytes(0x2004, 4) != 0x55555555);
+    // {
+    //     printf("debug1: %u\n", ReadNBytes(0x2000, 4));
+    // }
 
     // Get the frame data
     WriteU8(0x2080, 1);

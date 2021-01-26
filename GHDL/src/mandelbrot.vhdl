@@ -126,6 +126,12 @@ architecture arch of Mandelbrot is
   -- became larger than 4.0 ?
   signal overflow  : std_logic := '0';
 
+  -- When you need to set and out signal, but also read it somewhere else,
+  -- GHDL will be fine with it - but synthesizeable VHDL won't :-)
+  -- You therefore define an internal signal (that you can do this on)
+  -- and connect it to the output.
+  signal new_input_ack_internal : std_logic;
+
   ---------------------------------------------------------
   -- Debugging what happens at each cycle with all these
   -- signals was very hard. GHDL helped me immensely,
@@ -201,6 +207,8 @@ begin
   -- register inputs and move things up the pipeline
   -------------------------------------------------------------
 
+  new_input_ack <= new_input_ack_internal;
+
   process(clk, rst,
           is_used_slot, Xc_pipe_reg, Yc_pipe_reg,
           X_pipe_reg, Y_pipe_reg, offst_pipe_reg, XXmYY_reg,
@@ -222,7 +230,7 @@ begin
       iter_pipe_reg  <= (others => (others => '0'));
       X_reg <= (others => '0');
       Y_reg <= (others => '0');
-      new_input_ack <= '0';
+      new_input_ack_internal <= '0';
 
     elsif rising_edge(clk) then
     
@@ -233,9 +241,9 @@ begin
       -- - The outside world just provided them (new_input_arrived)
       -- - The first slot would be empty in the next cycle (i.e. last slot is currently empty)
       -- - And we haven't already raised an ack in the previous cycle
-      if new_input_arrived = '1' and is_used_slot(depth) = '0' and new_input_ack = '0' then
+      if new_input_arrived = '1' and is_used_slot(depth) = '0' and new_input_ack_internal = '0' then
 
-        new_input_ack <= '1';
+        new_input_ack_internal <= '1';
         is_used_slot(1) <= '1';
         Xc_pipe_reg(1) <= to_sfixed_custom(input_x);
         Yc_pipe_reg(1) <= to_sfixed_custom(input_y);
@@ -250,7 +258,7 @@ begin
       else
 
         -- No new input: we just iterate, rolling everything...
-        new_input_ack <= '0';
+        new_input_ack_internal <= '0';
         -- ...one slot to the right: 1->2, 2-3, ... depth->1
         -- These are the depth->1 parts:
         is_used_slot(1) <= is_used_slot(depth);
@@ -442,10 +450,10 @@ begin
       -- corresponding slot is NOT empty.
       -- At this phase, the corresponding input is at slot 3.
       if is_used_slot(3) = '1' then
-        if  to_slv(XXpYY_reg)(31) or
-            to_slv(XXpYY_reg)(30) or
-            to_slv(XXpYY_reg)(29) or
-            to_slv(XXpYY_reg)(28) then
+        if  to_slv(XXpYY_reg)(31) = '1' or
+            to_slv(XXpYY_reg)(30) = '1' or
+            to_slv(XXpYY_reg)(29) = '1' or
+            to_slv(XXpYY_reg)(28) = '1' then
           overflow <= '1';
           -- Debugging the overflows
           writeline(OUTPUT, l);

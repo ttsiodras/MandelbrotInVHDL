@@ -7,12 +7,14 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 use ieee.std_logic_unsigned.all;
-use ieee.fixed_pkg.all;
+
+library ieee_proposed;
+use ieee_proposed.fixed_pkg.all;
+
 use work.custom_fixed_point_types.all;
 use work.pipeline_types.all;
 
 use std.textio.all;
-use work.test_data.all;
 
 entity Mandelbrot is
   port (
@@ -126,70 +128,11 @@ architecture arch of Mandelbrot is
   -- became larger than 4.0 ?
   signal overflow  : std_logic := '0';
 
-  ---------------------------------------------------------
-  -- Debugging what happens at each cycle with all these
-  -- signals was very hard. GHDL helped me immensely,
-  -- by allowing me to use this debugging helper.
-  ---------------------------------------------------------
-  procedure debug_log(msg: string) is 
-    variable l : line;
-  begin
-    writeline(OUTPUT, l);
-
-    write(l, msg);
-    writeline(OUTPUT, l);
-
-    write(l, string'("new_input_arrived:"));
-    write(l, new_input_arrived);
-    writeline(OUTPUT, l);
-
-    write(l, string'("new_input_ack:"));
-    write(l, new_input_ack);
-    writeline(OUTPUT, l);
-
-    write(l, string'("overflow:"));
-    write(l, overflow);
-    writeline(OUTPUT, l);
-
-    write(l, string'("is_used_slot:"));
-    for i in is_used_slot'range loop
-      write(l, is_used_slot(i));
-      write(l, string'(","));
-    end loop;
-    writeline(OUTPUT, l);
-
-    write(l, string'("Xc_pipe_reg:"));
-    writeline(OUTPUT, l);
-    for i in Xc_pipe_reg'range loop
-      write(l, to_hex(to_slv(Xc_pipe_reg(i))));
-      write(l, string'(","));
-    end loop;
-    writeline(OUTPUT, l);
-
-    write(l, string'("offst_pipe_reg:"));
-    writeline(OUTPUT, l);
-    for i in offst_pipe_reg'range loop
-      write(l, to_hex(offst_pipe_reg(i)));
-      write(l, string'(","));
-    end loop;
-    writeline(OUTPUT, l);
-
-    write(l, string'("iter_pipe_reg:   "));
-    for i in iter_pipe_reg'range loop
-      write(l, to_hex(iter_pipe_reg(i)));
-      write(l, string'(","));
-    end loop;
-    writeline(OUTPUT, l);
-
-    write(l, string'("iter_pipe_delta: "));
-    for i in iter_pipe_delta'range loop
-      write(l, to_hex(iter_pipe_delta(i)));
-      write(l, string'(","));
-    end loop;
-    writeline(OUTPUT, l);
-
-    writeline(OUTPUT, l);
-  end procedure;
+  -- When you need to set and out signal, but also read it somewhere else,
+  -- GHDL will be fine with it - but synthesizeable VHDL won't :-)
+  -- You therefore define an internal signal (that you can do this one)
+  -- and connect it to the output.
+  signal new_input_ack_internal : std_logic;
 
 begin
 
@@ -200,6 +143,8 @@ begin
   -------------------------------------------------------------
   -- register inputs and move things up the pipeline
   -------------------------------------------------------------
+
+  new_input_ack <= new_input_ack_internal;
 
   process(clk, rst,
           is_used_slot, Xc_pipe_reg, Yc_pipe_reg,
@@ -222,20 +167,17 @@ begin
       iter_pipe_reg  <= (others => (others => '0'));
       X_reg <= (others => '0');
       Y_reg <= (others => '0');
-      new_input_ack <= '0';
+      new_input_ack_internal <= '0';
 
     elsif rising_edge(clk) then
     
-      -- Uncomment this to see what happens per cycle
-      -- debug_log("CLOCKED");
-
       -- New inputs are only accepted when:
       -- - The outside world just provided them (new_input_arrived)
       -- - The first slot would be empty in the next cycle (i.e. last slot is currently empty)
       -- - And we haven't already raised an ack in the previous cycle
-      if new_input_arrived = '1' and is_used_slot(depth) = '0' and new_input_ack = '0' then
+      if new_input_arrived = '1' and is_used_slot(depth) = '0' and new_input_ack_internal = '0' then
 
-        new_input_ack <= '1';
+        new_input_ack_internal <= '1';
         is_used_slot(1) <= '1';
         Xc_pipe_reg(1) <= to_sfixed_custom(input_x);
         Yc_pipe_reg(1) <= to_sfixed_custom(input_y);
@@ -250,7 +192,7 @@ begin
       else
 
         -- No new input: we just iterate, rolling everything...
-        new_input_ack <= '0';
+        new_input_ack_internal <= '0';
         -- ...one slot to the right: 1->2, 2-3, ... depth->1
         -- These are the depth->1 parts:
         is_used_slot(1) <= is_used_slot(depth);
@@ -341,7 +283,6 @@ begin
         Xc_pipe_reg(5) <= (others => '0');
         Yc_pipe_reg(5) <= (others => '0');
 
-        debug_log("[-] Marked slot 5 as unused");
       end if;
     end if;
   end process;
@@ -400,21 +341,6 @@ begin
       -- (2xy)
       XYpXY_reg <= resize(scalb(XY_reg, 1), XYpXY_reg);
 
-      -- Debugging the computations.
-      -- if is_used_slot(2) = '1' then
-      --   write(l, string'("[-] XX_reg:"));
-      --   write(l, to_hex(to_slv(XX_reg)));
-      --   write(l, string'(" YY_reg:"));
-      --   write(l, to_hex(to_slv(YY_reg)));
-      --   write(l, string'(" => XXpYY_reg:"));
-      --   write(l, to_hex(to_slv(XX_reg + YY_reg)));
-      --   write(l, string'(" ("));
-      --   -- we know that at this phase,
-      --   -- the corresponding input is at slot 2
-      --   write(l, to_hex(to_slv(Xc_pipe_reg(2))));
-      --   write(l, string'(")"));
-      --   writeline(OUTPUT, l);
-      -- end if;
     end if;
   end process;
 
@@ -442,29 +368,13 @@ begin
       -- corresponding slot is NOT empty.
       -- At this phase, the corresponding input is at slot 3.
       if is_used_slot(3) = '1' then
-        if  to_slv(XXpYY_reg)(31) or
-            to_slv(XXpYY_reg)(30) or
-            to_slv(XXpYY_reg)(29) or
-            to_slv(XXpYY_reg)(28) then
+        if  to_slv(XXpYY_reg)(31) = '1' or
+            to_slv(XXpYY_reg)(30) = '1' or
+            to_slv(XXpYY_reg)(29) = '1' or
+            to_slv(XXpYY_reg)(28) = '1' then
           overflow <= '1';
-          -- Debugging the overflows
-          writeline(OUTPUT, l);
-          write(l, string'("[!] Detected overflow via 4.0! "));
-          write(l, string'("XXpYY_reg: "));
-          write(l, to_hex(to_slv(XXpYY_reg)));
-          write(l, string'(" for X:"));
-          write(l, to_hex(to_slv(Xc_pipe_reg(3))));
-          writeline(OUTPUT, l);
         elsif iter_pipe_reg(3) > 239 then
           overflow <= '1';
-          -- Debugging the overflows
-          writeline(OUTPUT, l);
-          write(l, string'("[!] Detected overflow via 240! "));
-          write(l, string'("XXpYY_reg: "));
-          write(l, to_hex(to_slv(XXpYY_reg)));
-          write(l, string'(" for X:"));
-          write(l, to_hex(to_slv(Xc_pipe_reg(3))));
-          writeline(OUTPUT, l);
         end if;
       end if;
     end if;
@@ -495,14 +405,6 @@ begin
         output_number <= iter_pipe_reg(4);
         output_offset <= offst_pipe_reg(4);
         new_output_made <= '1';
-        -- Debugging output color
-        writeline(OUTPUT, l);
-        write(l, string'("[!] Outputing pixel "));
-        write(l, to_hex(iter_pipe_reg(4)));
-        write(l, string'(" for offset "));
-        write(l, to_hex(offst_pipe_reg(4)));
-        debug_log("[!] NEW PIXEL OUT...");
-        writeline(OUTPUT, l);
       end if;
     end if;
   end process;

@@ -43,7 +43,7 @@ Mandelbrot set, took 644.01 microseconds.
 
 ![The naive, SW-like implementation](contrib/naive.jpg "The naive, SW-like implementation")
 
-`make waves` records a VCD trace from GHDL, and launches GTKWave on it,
+In the `GHDL` folder, `make waves` records a VCD trace, and launches GTKWave on it;
 allowing us to see what happens with the signals. Notice the "empty space",
 as many signals stay idle - while each stage of the state machine processes
 its inputs and generates its outputs.
@@ -75,11 +75,12 @@ Same for the adders that follow - etc.
 To be honest, writing this code was much harder than I expected... I am very happy
 I finally figured it out.
  
-And I now fully appreciate [GHDL](https://github.com/ghdl/ghdl); I couldn't have
+And I now fully appreciate [GHDL](https://github.com/ghdl/ghdl) I couldn't have
 fixed my VHDL code without it. The graphical representations alone (shown above
-via `make waves") are not enough when you track down "race conditions" in HW signals.
+via `cd GHDL ; make waves`) are not enough when you track down "race conditions"
+in HW signals.
 
-OK, next step: run this in the Spartan3, and witness the 3x speedup with my
+OK, next step: run this in the Spartan3, and witness the speedup with my
 own eyes :-)
 
 **UPDATE, Jan 26th, 2021**
@@ -92,10 +93,20 @@ in the SRAM. Thankfully, it seems that apart from a latency of 1 cycle at
 the beginning (set address and data, wait a cycle, set "write enable"),
 I can subsequently change address/data on every cycle while keeping the 
 "write enable" set. The SRAM in question keeps up, so I got to see my
-interactive "Zoomer" run 2.5 times faster than before :-)
+interactive "Zoomer" run 2.3 times faster than before *(see test below,
+just before merging my `Spartan3_Pipelined` branch into my `master`;
+from 223ms down to 99ms)*
+
+![Benchmarking a single frame on the board](contrib/on.board.jpg "Benchmarking a single frame on the board")
+
+Why "only" 2.3 times faster? Well, it's not just the computation - the image
+has to also travel over USB to the PC for displaying. I guess the next step
+is to solder a little board - using the GPIOs to create a VGA output...  :-)
+
+![Benchmarking on the real board with the interactive zoomer](contrib/on.board.zoomer.jpg "Benchmarking on the real board with the interactive zoomer")
 
 *P.S. If you want to see 1000 times faster interactive zooms, checks my "XaoS"-inspired
 [SW optimization](https://github.com/ttsiodras/MandelbrotSSE) - where I
 avoid recomputing the pixels, by re-using them from the previous frame.
-Clever algorithms always win :-)*
+Clever algorithms for the win :-)*
 

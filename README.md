@@ -6,8 +6,7 @@ translation of the algorithm, with the HW side fully implementing the
 computation of a complete frame, storing it in SRAM, and then sending it
 back to the main PC over the USB bus.
 
-<a href="https://www.youtube.com/watch?v=yFIbjiOWYFY">
-<img src="contrib/snapshotFromVideo.jpg" alt="Mandelbrot in VHDL - real-time zooming video">Mandelbrot in VHDL - real-time zooming video</img></a>
+[![Mandelbrot in VHDL - real-time zooming video](contrib/snapshotFromVideo.jpg)](https://www.youtube.com/watch?v=yFIbjiOWYFY)
 
 Now I need to find the time... to try to pipeline this - so I can get
 one pixel output per cycle.
@@ -42,8 +41,7 @@ They will match; and in addition, it will report:
 That is, the computation of these 89 points on the complex plane of the
 Mandelbrot set, took 644.01 microseconds.
 
-<img src="contrib/naive.jpg" alt="The naive, SW-like implementation"><BR>
-<em>The naive, SW-like implementation</em>
+![The naive, SW-like implementation](contrib/naive.jpg "The naive, SW-like implementation")
 
 `make waves` records a VCD trace from GHDL, and launches GTKWave on it,
 allowing us to see what happens with the signals. Notice the "empty space",
@@ -62,8 +60,7 @@ That is, instead of 644.01us, the new circuit takes 177.06us **to do the same wo
 
 In other words, it is 3.63 times faster. Why?
 
-<img src="contrib/pipelined.jpg" alt="The pipelined implementation"><BR>
-<em>The pipelined implementation</em>
+![The pipelined implementation](contrib/pipelined.jpg "The pipelined implementation")
 
 Because there is no "empty space" anymore :-)
 

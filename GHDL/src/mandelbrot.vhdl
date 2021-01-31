@@ -101,7 +101,7 @@ architecture arch of Mandelbrot is
   -- The X,Y coordinates in the first slot of the pipeline.
   -- When we get a new input and the first slot would be
   -- empty in the next cycle (i.e. the last slot is currently
-  -- empty) then these two get the Xc, Yc that where just input.
+  -- empty) then these two get the Xc, Yc that were just input.
   --
   -- Otherwise, they get the last slot values
   -- (that wrap-around into them).
@@ -126,7 +126,7 @@ architecture arch of Mandelbrot is
   -- became larger than 4.0 ?
   signal overflow  : std_logic := '0';
 
-  -- When you need to set and out signal, but also read it somewhere else,
+  -- When you need to set an out signal, but also read it somewhere else,
   -- GHDL will be fine with it - but synthesizeable VHDL won't :-)
   -- You therefore define an internal signal (that you can do this on)
   -- and connect it to the output.
@@ -199,6 +199,11 @@ architecture arch of Mandelbrot is
 
 begin
 
+  -- See above:
+  -- "You therefore define an internal signal...and connect it to the output"
+  -- This is exactly what we do here:
+  new_input_ack <= new_input_ack_internal;
+
 -------------------------------------------------------------------------------
 -- STAGE 0 (INPUT)
 -------------------------------------------------------------------------------
@@ -206,8 +211,6 @@ begin
   -------------------------------------------------------------
   -- register inputs and move things up the pipeline
   -------------------------------------------------------------
-
-  new_input_ack <= new_input_ack_internal;
 
   process(clk, rst,
           is_used_slot, Xc_pipe_reg, Yc_pipe_reg,

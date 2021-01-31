@@ -92,6 +92,9 @@ void CreateSurface()
     if (!surface)
         panic("Couldn't set video mode: %d", SDL_GetError());
 
+    WMAXX = SDL_GetVideoInfo()->current_w;
+    WMAXY = SDL_GetVideoInfo()->current_h;
+
     SetPalette(surface);
 
     //SDL_SetAlpha(surface, 0, SDL_ALPHA_OPAQUE);
@@ -175,9 +178,8 @@ int main()
     const char *usage = "Left click to zoom-in, right-click to zoom-out, ESC to quit...";
     SDL_WM_SetCaption(usage,usage);
 
-    WMAXX = MAXX;
-    WMAXY = MAXY;
-    double xld = -2.2, yld=-1.1, xru=-2+(MAXX/MAXY)*3., yru=1.1;
+    // double xld=-1.6, yld=-1.1, xru=-1.6+(MAXX/MAXY)*3.2, yru=1.2;
+    double xld=-1.26332, yld=-0.40897, xru=-1.2616, yru=-0.407733;
 
     st = SDL_GetTicks();
     while(1) {

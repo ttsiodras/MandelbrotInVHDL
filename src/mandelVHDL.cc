@@ -90,7 +90,6 @@ void mandelVHDL(unsigned char *framebuffer, double xld, double yld, double xru, 
     if (!warmSRAM) {
         warmSRAM = 1;
         mandelVHDL(framebuffer, xld, yld, xru, yru);
-        puts("Yay!"); fflush(stdout); sleep(1);
     }
     // Send the window coordinates
     // top-left x,y, and stepx,stepy

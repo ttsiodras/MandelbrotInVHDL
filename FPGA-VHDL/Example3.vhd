@@ -447,6 +447,9 @@ begin
                     end if;
 
                 when waitForAllOutputs =>
+                    -- wait for the other state machine (see below) to report
+                    -- that all inputs have been processed (and outputs written
+                    -- to SRAM)
                     if PixelsOutputRemaining /= 0 then
                         state <= waitForAllOutputs;
                     else
@@ -519,17 +522,37 @@ begin
             SRAMWE <= '0';
 
             case state_aux is
-                when waiting_for_outputs =>
-                    -- check if the engine reports a new output
-                    if new_output_made = '1' then
-                        -- One less pixel to wait for...
-                        PixelsOutputRemaining <= PixelsOutputRemaining - 1;
+                -- This is the state machine that collects the Mandelbrot
+                -- outputs from the pipeline and writes them to SRAM.
+                -- This is where I, erm, took a shortcut.
+                --
+                -- You see, the pipeline ideally emits new pixel values
+                -- per cycle. I did not want to "stall" the pipeline with
+                -- a handshake pulse - they way I do for the input signals.
+                -- Why? Because I made a bet - which paid out - that my
+                -- SRAM could tolerate me doing this:
+                --
+                --     new_output_color set into SRAMDataOut
+                --     new_output_offset set into SRAMAddr
+                --     wait one cycle
+                --     SRAMWE set to 1
+                --     *and within the same cycle, if new pixel made*
+                --     new_output_color set into SRAMDataOut
+                --     new_output_offset set into SRAMAddr
+                --
+                -- ..that is, I "pipeline" the outputs into my SRAM,
+                -- keeping the WE high for as long as I have data.
 
+                when waiting_for_outputs =>
+                    -- Unnecessary, but makes the code clearer.
+                    SRAMWE <= '0';
+                    -- So: check if the engine reports a new output
+                    if new_output_made = '1' then
+                        -- It did! One less pixel to wait for...
+                        PixelsOutputRemaining <= PixelsOutputRemaining - 1;
                         -- Keep a running counter (so the PC can progress bar)
                         debug1 <= std_logic_vector(
                             to_unsigned(PixelsOutputRemaining, debug1'length));
-                        -- if so, take a shortcut to write
-                        -- the new color in SRAM
                         -- Prepare to write the new pixel color to SRAM:
                         SRAMDataOut <=
                             "0000000000" & std_logic_vector(output_number);
@@ -546,23 +569,19 @@ begin
                     -- we've already setup address and data bus, 
                     -- and they have stabilized by now. Write pulse!
                     SRAMWE <= '1';
+                    -- Normally, return to waiting_for_outputs... 
                     state_aux <= waiting_for_outputs;
+                    -- but if there's new data already generated
+                    -- (which is possible, since my pipeline can emit one new pixel
+                    --  per cycle), do exactly the same thing we did before,
+                    -- and stay in this state!
                     if new_output_made = '1' then
-                        -- One less pixel to wait for...
                         PixelsOutputRemaining <= PixelsOutputRemaining - 1;
-
-                        -- Keep a running counter (so the PC can progress bar)
                         debug1 <= std_logic_vector(
                             to_unsigned(PixelsOutputRemaining, debug1'length));
-                        -- if so, take a shortcut to write
-                        -- the new color in SRAM
-                        -- Prepare to write the new pixel color to SRAM:
                         SRAMDataOut <=
                             "0000000000" & std_logic_vector(output_number);
-                        -- Setup target address in SRAM
                         SRAMAddr <= output_offset_slv(22 downto 0);
-                        -- But you can't write yet - wait for next cycle
-                        -- till address and databus stabilize.
                         state_aux <= writing_to_memory;
                     end if;
 

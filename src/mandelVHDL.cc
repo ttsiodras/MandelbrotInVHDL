@@ -86,6 +86,12 @@ void mandelVHDL_init()
 
 void mandelVHDL(unsigned char *framebuffer, double xld, double yld, double xru, double yru)
 {
+    static int warmSRAM = 0;
+    if (!warmSRAM) {
+        warmSRAM = 1;
+        mandelVHDL(framebuffer, xld, yld, xru, yru);
+        puts("Yay!"); fflush(stdout); sleep(1);
+    }
     // Send the window coordinates
     // top-left x,y, and stepx,stepy
     WriteDouble(xld, 0x2060);
@@ -101,7 +107,9 @@ void mandelVHDL(unsigned char *framebuffer, double xld, double yld, double xru, 
 
     // Get the frame data
     WriteU8(0x2080, 1);
-    ZestSC1ReadData(Handle, framebuffer, WIDTH*HEIGHT);
+    unsigned char hack = *(framebuffer-1);
+    ZestSC1ReadData(Handle, framebuffer-1, WIDTH*HEIGHT);
+    *(framebuffer-1) = hack;
 }
 
 void mandelVHDL_shutdown()

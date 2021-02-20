@@ -8,6 +8,8 @@ back to the main PC over the USB bus.
 
 [![Mandelbrot in VHDL - real-time zooming video](contrib/snapshotFromVideo.jpg)](https://www.youtube.com/watch?v=yFIbjiOWYFY)
 
+<a name="pipelining"></a>
+
 Now I need to find the time... to try to pipeline this - so I can get
 one pixel output per cycle.
 
